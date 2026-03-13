@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bank Reconcile App
 
-## Getting Started
+Hệ thống quản lý và xử lý đối soát sổ phụ ngân hàng cho kế toán (Local-first Internal Web Application).
 
-First, run the development server:
+## Tech Stack
+- **Framework:** Next.js (App Router) + TypeScript
+- **Styling:** Tailwind CSS + Shadcn UI
+- **Database & Auth:** Supabase (PostgreSQL)
+- **Exporting:** `exceljs`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Kiến trúc thư mục (File Tree)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `src/app/(dashboard)/`: Giao diện UI các màn hình chính (Imports, Transactions, Categories, Rules, Exports).
+- `src/app/api/`: Các endpoint giao tiếp client-server (nếu cần outside Server Actions).
+- `src/components/`:
+  - `/ui`: Các component UI tái sử dụng (Button, Input, Table...).
+  - `/features`: Các component logic nghiệp vụ (UploadZone, ExcelDataGrid).
+- `src/lib/`: Tiện ích dùng chung (config supabase, utils).
+- `src/services/`: Lớp xử lý logic nghiệp vụ backend tách biệt với UI:
+  - `import.service`: Đẩy file gốc, tạo metadata batch.
+  - `parser.service`: Xử lý buffer, trích xuất dòng CSV/Excel.
+  - `classification.service`: Chạy thuật toán map keyword & category.
+  - `export.service`: Sinh file excel đối soát / hạch toán.
+  - `audit.service`: Ghi vết mọi thao tác review tay.
+- `src/domain/`: Định nghĩa các models, entities, validation schemas.
+- `src/workers/`: (Tương lai) Chứa logic xử lý job nặng chạy ngầm.
+- `src/tests/`: Unit test và Integration test.
+- `src/scripts/`: Script chạy migrate DB hoặc tiện ích dùng 1 lần ngoài app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Hướng dẫn chạy Local
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Cài đặt dependency:
+   \`\`\`bash
+   npm install
+   \`\`\`
+2. Điền biến môi trường:
+   Khởi tạo file \`.env.local\` và cấu hình khóa Supabase:
+   \`\`\`
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   \`\`\`
+3. Khởi chạy Server dev:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+4. Truy cập: [http://localhost:3000](http://localhost:3000)
