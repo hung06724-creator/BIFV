@@ -33,7 +33,7 @@ export function UrgentTable({ transactions }: UrgentTableProps) {
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-[280px]">Mô tả</th>
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Số tiền</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Gợi ý ĐM</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">Conf.</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">Tin cậy</th>
               <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
             </tr>
           </thead>

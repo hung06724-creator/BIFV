@@ -64,7 +64,7 @@ export function RuleTable({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Tìm keyword, category..."
+            placeholder="Tìm từ khoá, danh mục..."
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -88,12 +88,12 @@ export function RuleTable({
             className="text-sm border border-gray-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
+            <option value="true">Hoạt động</option>
+            <option value="false">Không hoạt động</option>
           </select>
         </div>
         <span className="text-xs text-gray-400">
-          {rules.length}/{totalRules} rules
+          {rules.length}/{totalRules} quy tắc
         </span>
       </div>
 
@@ -105,8 +105,8 @@ export function RuleTable({
               <tr>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase w-16">Pri.</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Loại</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Pattern / Keyword</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Mẫu / Từ khoá</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Danh mục</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Conf.</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Khoảng tiền</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase w-16">Stop</th>

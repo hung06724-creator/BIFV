@@ -35,10 +35,10 @@ export function RulesManagerView() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm">
           <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium">
-            Tổng: <span className="font-bold">{totalRules}</span> rules
+            Tổng: <span className="font-bold">{totalRules}</span> quy tắc
           </span>
           <span className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-medium">
-            Active: <span className="font-bold">{rules.filter((r) => r.is_active).length}</span>
+            Hoạt động: <span className="font-bold">{rules.filter((r) => r.is_active).length}</span>
           </span>
         </div>
         {!showForm && (
@@ -47,7 +47,7 @@ export function RulesManagerView() {
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Tạo Rule mới
+            Tạo quy tắc mới
           </button>
         )}
       </div>

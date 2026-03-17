@@ -3,6 +3,14 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* HNIVC brand palette (derived from logo) */
+  --brand-primary: #1A3C7B;      /* dark navy blue – gear/text */
+  --brand-primary-light: #2A5298; /* lighter blue for hover */
+  --brand-primary-dark: #0F2550;  /* deeper blue for active */
+  --brand-accent-red: #C62828;    /* red gate in seal */
+  --brand-accent-gold: #F5C518;   /* gold background of seal */
+  --brand-border: #2A5298;        /* sidebar dividers */
 }
 
 body {

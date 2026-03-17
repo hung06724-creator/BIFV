@@ -36,7 +36,7 @@ export function RuleTester({ onTest }: RuleTesterProps) {
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
         <FlaskConical className="w-4 h-4 text-amber-500" />
-        <h3 className="text-sm font-semibold text-gray-800">Test Rule</h3>
+        <h3 className="text-sm font-semibold text-gray-800">Thử quy tắc</h3>
         <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
           Dùng form phía trên để cấu hình rule, rồi test tại đây
         </span>

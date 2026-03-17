@@ -62,9 +62,9 @@ export function ColumnMapper({ detectedColumns, onMappingChange }: ColumnMapperP
       >
         <div className="flex items-center gap-2">
           <Columns3 className="w-4 h-4 text-indigo-500" />
-          <h3 className="text-sm font-semibold text-gray-800">Column Mapping</h3>
+          <h3 className="text-sm font-semibold text-gray-800">Ánh xạ cột dữ liệu</h3>
           <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-            {autoDetectedCount}/{MAPPING_FIELDS.length} auto-detected
+            {autoDetectedCount}/{MAPPING_FIELDS.length} tự phát hiện
           </span>
         </div>
         {expanded ? (
@@ -78,7 +78,7 @@ export function ColumnMapper({ detectedColumns, onMappingChange }: ColumnMapperP
         <div className="px-5 pb-4 border-t border-gray-100 pt-4">
           <div className="flex items-center gap-1.5 mb-3 text-xs text-gray-500">
             <Info className="w-3 h-3" />
-            Hệ thống đã auto-detect dựa trên tên cột. Bạn có thể chỉnh lại nếu sai.
+            Hệ thống đã tự phát hiện dựa trên tên cột. Bạn có thể chỉnh lại nếu sai.
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {MAPPING_FIELDS.map((field) => (

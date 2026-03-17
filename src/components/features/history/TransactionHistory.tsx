@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronDown, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
 import { useAppStore, type BankTab } from '@/lib/store';
 import type { TransactionListItem } from '@/components/features/transactions/types';
 
@@ -51,8 +51,11 @@ function groupByMonth(transactions: TransactionListItem[]): MonthGroup[] {
 export function TransactionHistory() {
   const bidv = useAppStore((s) => s.bidvTransactions);
   const agri = useAppStore((s) => s.agribankTransactions);
+  const deleteTransactions = useAppStore((s) => s.deleteTransactions);
   const [activeBank, setActiveBank] = useState<BankTab>('BIDV');
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const transactions = activeBank === 'BIDV' ? bidv : agri;
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
@@ -66,6 +69,35 @@ export function TransactionHistory() {
     });
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleMonthAll = (month: MonthGroup) => {
+    const monthIds = month.transactions.map((t) => t.id);
+    const allSelected = monthIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        for (const id of monthIds) next.delete(id);
+      } else {
+        for (const id of monthIds) next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleDelete = () => {
+    deleteTransactions(activeBank, selectedIds);
+    setSelectedIds(new Set());
+    setConfirmingDelete(false);
+  };
+
   const bankCounts = { BIDV: bidv.length, AGRIBANK: agri.length };
 
   return (
@@ -75,7 +107,7 @@ export function TransactionHistory() {
         {BANK_TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => { setActiveBank(tab.key); setExpandedMonths(new Set()); }}
+            onClick={() => { setActiveBank(tab.key); setExpandedMonths(new Set()); setSelectedIds(new Set()); }}
             className={clsx(
               'px-5 py-2 text-sm font-medium rounded-lg border transition-colors',
               activeBank === tab.key
@@ -94,48 +126,103 @@ export function TransactionHistory() {
         ))}
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5">
+          <span className="text-xs font-semibold text-red-700">
+            Đã chọn {selectedIds.size} giao dịch
+          </span>
+          {!confirmingDelete ? (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-3 w-3" />
+              Xóa
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-600">Xác nhận xóa?</span>
+              <button
+                onClick={handleDelete}
+                className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
+              >
+                Xóa {selectedIds.size} giao dịch
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => { setSelectedIds(new Set()); setConfirmingDelete(false); }}
+            className="ml-auto text-xs text-red-500 hover:text-red-700"
+          >
+            Bỏ chọn tất cả
+          </button>
+        </div>
+      )}
+
       {months.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">Chưa có dữ liệu {activeBank}. Hãy Import sổ phụ trước.</p>
+          <p className="text-gray-400 text-sm">Chưa có dữ liệu {activeBank}. Hãy nhập sổ phụ trước.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {months.map((month) => {
             const isExpanded = expandedMonths.has(month.key);
+            const monthIds = month.transactions.map((t) => t.id);
+            const selectedInMonth = monthIds.filter((id) => selectedIds.has(id)).length;
+            const allMonthSelected = selectedInMonth === monthIds.length;
+
             return (
               <div key={month.key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                 {/* Month header */}
-                <button
-                  onClick={() => toggleMonth(month.key)}
-                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {isExpanded
-                      ? <ChevronDown className="w-5 h-5 text-gray-400" />
-                      : <ChevronRight className="w-5 h-5 text-gray-400" />
-                    }
-                    <Calendar className="w-4 h-4 text-indigo-500" />
-                    <span className="text-sm font-semibold text-gray-800">{month.label}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {month.count} giao dịch
-                    </span>
+                <div className="flex items-center hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center pl-4">
+                    <input
+                      type="checkbox"
+                      checked={allMonthSelected}
+                      ref={(el) => { if (el) el.indeterminate = selectedInMonth > 0 && !allMonthSelected; }}
+                      onChange={() => toggleMonthAll(month)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
                   </div>
-                  <div className="flex items-center gap-5">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <TrendingUp className="w-3.5 h-3.5 text-green-500" />
-                      <span className="font-mono font-semibold text-green-600">{VN.format(month.totalCredit)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <TrendingDown className="w-3.5 h-3.5 text-red-500" />
-                      <span className="font-mono font-semibold text-red-600">{VN.format(month.totalDebit)}</span>
-                    </div>
-                    <div className="text-xs font-mono font-bold text-gray-700">
-                      Ròng: <span className={month.totalCredit - month.totalDebit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {VN.format(month.totalCredit - month.totalDebit)}
+                  <button
+                    onClick={() => toggleMonth(month.key)}
+                    className="flex-1 px-3 py-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      {isExpanded
+                        ? <ChevronDown className="w-5 h-5 text-gray-400" />
+                        : <ChevronRight className="w-5 h-5 text-gray-400" />
+                      }
+                      <Calendar className="w-4 h-4 text-indigo-500" />
+                      <span className="text-sm font-semibold text-gray-800">{month.label}</span>
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {month.count} giao dịch
                       </span>
                     </div>
-                  </div>
-                </button>
+                    <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                        <span className="font-mono font-semibold text-green-600">{VN.format(month.totalCredit)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                        <span className="font-mono font-semibold text-red-600">{VN.format(month.totalDebit)}</span>
+                      </div>
+                      <div className="text-xs font-mono font-bold text-gray-700">
+                        Ròng: <span className={month.totalCredit - month.totalDebit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {VN.format(month.totalCredit - month.totalDebit)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                </div>
 
                 {/* Transactions table */}
                 {isExpanded && (
@@ -143,6 +230,15 @@ export function TransactionHistory() {
                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="w-10 px-4 py-2.5 text-center">
+                            <input
+                              type="checkbox"
+                              checked={allMonthSelected}
+                              ref={(el) => { if (el) el.indeterminate = selectedInMonth > 0 && !allMonthSelected; }}
+                              onChange={() => toggleMonthAll(month)}
+                              className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-10">#</th>
                           <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Thời gian</th>
                           <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Tiền ra</th>
@@ -152,7 +248,21 @@ export function TransactionHistory() {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {month.transactions.map((t, idx) => (
-                          <tr key={t.id} className="hover:bg-gray-50">
+                          <tr
+                            key={t.id}
+                            className={clsx(
+                              'hover:bg-gray-50',
+                              selectedIds.has(t.id) && 'bg-red-50/50'
+                            )}
+                          >
+                            <td className="px-4 py-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(t.id)}
+                                onChange={() => toggleSelect(t.id)}
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                            </td>
                             <td className="px-4 py-2 text-xs text-gray-400 font-mono">{idx + 1}</td>
                             <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{t.raw_date}</td>
                             <td className="px-4 py-2 text-xs text-right font-mono">

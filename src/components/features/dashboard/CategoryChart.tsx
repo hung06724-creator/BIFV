@@ -25,7 +25,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
       <div className="px-5 py-3 border-b border-gray-100">
         <h3 className="text-sm font-semibold text-gray-800">Phân bổ theo đầu mục</h3>
-        <p className="text-xs text-gray-400 mt-0.5">Giao dịch đã confirmed, nhóm theo category</p>
+        <p className="text-xs text-gray-400 mt-0.5">Giao dịch đã xác nhận, nhóm theo danh mục</p>
       </div>
       <div className="p-5 space-y-3">
         {data.map((item, idx) => {

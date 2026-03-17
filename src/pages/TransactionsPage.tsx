@@ -7,7 +7,7 @@ export default function TransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Danh sách Giao dịch</h1>
           <p className="text-sm text-gray-500">
-            Kiểm tra, phân loại và xác nhận giao dịch sau khi import sao kê ngân hàng.
+            Kiểm tra, phân loại và xác nhận giao dịch sau khi nhập sao kê ngân hàng.
           </p>
         </div>
       </div>

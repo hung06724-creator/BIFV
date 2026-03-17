@@ -156,7 +156,7 @@ export function UploadDropzone({
             ) : (
               <>
                 <UploadCloud className="w-4 h-4" />
-                Tải lên & Preview
+                Tải lên & Xem trước
               </>
             )}
           </button>

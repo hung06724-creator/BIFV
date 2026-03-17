@@ -16,9 +16,9 @@ import type { ImportStep } from './types';
 
 const STEPS: { key: ImportStep; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'upload', label: 'Tải lên', icon: UploadCloud },
-  { key: 'preview', label: 'Preview', icon: Eye },
-  { key: 'parsing', label: 'Parse', icon: Cpu },
-  { key: 'classifying', label: 'Classify', icon: Brain },
+  { key: 'preview', label: 'Xem trước', icon: Eye },
+  { key: 'parsing', label: 'Phân tích', icon: Cpu },
+  { key: 'classifying', label: 'Phân loại', icon: Brain },
   { key: 'done', label: 'Hoàn tất', icon: CheckCircle2 },
 ];
 
@@ -142,16 +142,16 @@ export function ImportFlowView() {
       {step === 'done' && (
         <div className="text-center py-12">
           <CheckCircle2 className="w-16 h-16 mx-auto text-green-500 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Import hoàn tất!</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Nhập dữ liệu hoàn tất!</h3>
           <p className="text-sm text-gray-500 mb-6">
-            Batch đã được xử lý. Hãy vào trang Transactions để review.
+            Lô dữ liệu đã được xử lý. Hãy vào trang Giao dịch để kiểm tra.
           </p>
           <button
             onClick={reset}
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Import file mới
+            Nhập file mới
           </button>
         </div>
       )}

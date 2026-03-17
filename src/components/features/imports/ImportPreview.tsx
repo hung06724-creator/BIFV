@@ -49,10 +49,10 @@ export function ImportPreview({ uploadResult, onParse, loading }: ImportPreviewP
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Đang parse...
+              Đang phân tích...
             </>
           ) : (
-            'Parse Batch →'
+            'Phân tích dữ liệu →'
           )}
         </button>
       </div>
@@ -82,7 +82,7 @@ export function ImportPreview({ uploadResult, onParse, loading }: ImportPreviewP
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
             <Table2 className="w-4 h-4 text-green-600" />
-            Preview dữ liệu
+            Xem trước dữ liệu
             <span className="text-xs text-gray-400 font-normal">
               (hiển thị {preview_rows.length} / {total_rows} dòng)
             </span>

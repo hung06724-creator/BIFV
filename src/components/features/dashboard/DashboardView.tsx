@@ -20,6 +20,8 @@ export function DashboardView() {
       classified: transactions.filter((t) => t.status === 'classified').length,
       confirmed: transactions.filter((t) => t.status === 'confirmed').length,
       exported: transactions.filter((t) => t.status === 'exported').length,
+      matched: transactions.filter((t) => t.status === 'matched').length,
+      mismatched: transactions.filter((t) => t.status === 'mismatched').length,
     };
 
     return {
@@ -39,7 +41,7 @@ export function DashboardView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Tổng quan</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Tổng quan tình trạng xử lý sổ phụ ngân hàng
           </p>
@@ -48,7 +50,7 @@ export function DashboardView() {
 
       {transactions.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">Chưa có dữ liệu. Hãy Import sổ phụ ngân hàng trước.</p>
+          <p className="text-gray-400 text-sm">Chưa có dữ liệu. Hãy nhập sổ phụ ngân hàng trước.</p>
         </div>
       ) : (
         <>
