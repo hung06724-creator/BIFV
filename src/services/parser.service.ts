@@ -1,5 +1,24 @@
 import * as XLSX from 'xlsx';
-import { BankTransaction } from '@/domain/types';
+import type { BankTransaction, SplitMode, TransactionType } from '@/domain/types';
+
+export interface ClassifiedAllocation {
+  category_code: string;
+  amount: number;
+}
+
+export interface ClassifiedTransaction {
+  raw_date: string;
+  raw_desc: string;
+  raw_reference: string;
+  normalized_date: string;
+  normalized_amount: number;
+  type: TransactionType;
+  split_mode: SplitMode;
+  sender_name: string | null;
+  allocations: ClassifiedAllocation[];
+  status: string;
+  notes: string | null;
+}
 
 /**
  * Column mapping for each bank format.
@@ -32,20 +51,18 @@ const BANK_CONFIGS: Record<string, BankColumnConfig> = {
     descCol: 5,
     referenceCol: 0,
   },
-  // AGRIBANK: header row 1 (0-based: 0), data from row 2 (0-based: 1)
-  // Columns: No.(0) | STT(1) | Thời gian GD(2) | Ngày hạch toán(3) | Số ID(4) | Số TK(5) |
-  //          Số dư trước(6) | Số tiền GD(7) | Loại tiền(8) | Số dư cuối(9) | TK đối ứng(10) | Nội dung(11) | Tính chất lệnh(12)
-  // Số tiền GD has format: '+200,000 (credit) or '-55,000 (debit)
+  // AGRIBANK sổ phụ gốc: header row 1 (0-based: 0), data from row 2 (0-based: 1)
+  // Columns: No.(0) | STT(1) | Thời gian GD(2) | Ngày hạch toán(3) | Số ID(4) | Số TK(5) | Số dư trước(6) | Số tiền GD(7) | Loại tiền(8) | Số dư cuối(9) | TK đối ứng(10) | Nội dung(11) | Tính chất lệnh(12)
   AGRIBANK: {
     headerRowIndex: 0,
     dataStartIndex: 1,
-    dateCol: 2,
+    dateCol: 2,       // Thời gian giao dịch
     debitCol: null,
     creditCol: null,
-    amountCol: 7,   // Số tiền giao dịch: '+xxx = credit, '-xxx = debit
-    balanceCol: 9,   // Số dư cuối
-    descCol: 11,
-    referenceCol: 4,
+    amountCol: 7,     // Số tiền giao dịch ('+200,000 or '-55,000)
+    balanceCol: 9,    // Số dư cuối
+    descCol: 11,      // Nội dung
+    referenceCol: 4,  // Số ID — primary key for dedup
   },
 };
 
@@ -122,7 +139,7 @@ export class ParserService {
       if (!row || row.length === 0) continue;
 
       const mapped = this.mapRowToNormalized(row, config);
-      if (!mapped || !mapped.date || !mapped.description) continue;
+      if (!mapped || !mapped.date) continue;
 
       const debitAmount = mapped.debit || 0;
       const creditAmount = mapped.credit || 0;
@@ -131,7 +148,7 @@ export class ParserService {
       const normalizedAmount = isCredit ? creditAmount : debitAmount;
       if (normalizedAmount === 0) continue;
 
-      // Parse date DD/MM/YYYY to YYYY-MM-DD
+      // Parse date: DD/MM/YYYY (serial numbers already converted in mapRowToNormalized)
       let normalizedDate = new Date().toISOString().split('T')[0];
       const dateOnly = mapped.date.split(' ')[0];
       const dateParts = dateOnly.split('/');
@@ -143,7 +160,7 @@ export class ParserService {
 
       transactions.push({
         raw_date: mapped.date,
-        raw_desc: mapped.description,
+        raw_desc: mapped.description || '',
         raw_amount: String(normalizedAmount),
         raw_reference: mapped.reference,
         normalized_date: normalizedDate,
@@ -159,8 +176,26 @@ export class ParserService {
   /**
    * Map a raw row array to the 5 normalized fields based on bank config.
    */
+  private excelSerialToDateString(serial: number): string {
+    // Excel serial number → DD/MM/YYYY HH:MM:SS
+    // Excel epoch: 1900-01-01 = serial 1, with the leap-year bug (serial 60 = 29/02/1900)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const ms = excelEpoch.getTime() + serial * 86400000;
+    const d = new Date(ms);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mi = String(d.getUTCMinutes()).padStart(2, '0');
+    const ss = String(d.getUTCSeconds()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
+  }
+
   private mapRowToNormalized(row: any[], config: BankColumnConfig) {
-    const date = String(row[config.dateCol] || '').trim();
+    const rawDate = row[config.dateCol];
+    const date = typeof rawDate === 'number'
+      ? this.excelSerialToDateString(rawDate)
+      : String(rawDate || '').trim();
     const balance = this.parseNumber(row[config.balanceCol]);
     const description = String(row[config.descCol] || '').trim();
 
@@ -186,6 +221,121 @@ export class ParserService {
     if (!date && !description) return null;
 
     return { date, debit, credit, balance, description, reference };
+  }
+
+  /**
+   * Parse a classified Excel file.
+   *
+   * Format: Row 0 is headers.
+   *   Columns 0-4: Số ID | Thời gian giao dịch | Số tiền giao dịch | Số dư cuối | Nội dung
+   *   Columns 5+:  Each header is a category_code (e.g. HOC_PHI, BAO_HIEM_YT, ...).
+   *                Data rows have the allocated amount placed directly in the matching category column(s).
+   *
+   * A transaction with 1 filled category column → direct.
+   * A transaction with 2+ filled category columns → horizontal.
+   */
+  async parseClassifiedBuffer(buffer: ArrayBuffer, bankCode: string = 'AGRIBANK'): Promise<ClassifiedTransaction[]> {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!worksheet) {
+      throw new Error('File Excel rỗng.');
+    }
+
+    const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    if (!rawData || rawData.length < 2) {
+      throw new Error('File Excel rỗng hoặc không đúng định dạng.');
+    }
+
+    const headerRow = rawData[0];
+    const isBIDV = bankCode === 'BIDV';
+
+    // BIDV: 6 fixed columns (Số tham chiếu | Thời gian | Tiền ra | Tiền vào | Số dư | Nội dung)
+    // AGRIBANK: 5 fixed columns (Số ID | Thời gian | Số tiền | Số dư cuối | Nội dung)
+    const CATEGORY_START = isBIDV ? 6 : 5;
+    const categoryColumns: Array<{ col: number; code: string }> = [];
+    for (let c = CATEGORY_START; c < headerRow.length; c++) {
+      const code = String(headerRow[c] || '').trim();
+      if (code) {
+        categoryColumns.push({ col: c, code });
+      }
+    }
+
+    if (categoryColumns.length === 0) {
+      throw new Error(`Không tìm thấy cột danh mục nào từ cột thứ ${CATEGORY_START + 1} trở đi.`);
+    }
+
+    const transactions: ClassifiedTransaction[] = [];
+
+    for (let i = 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (!row || row.length === 0) continue;
+
+      const rawReference = String(row[0] || '').trim();
+      const rawDateVal = row[1];
+      const rawDate = typeof rawDateVal === 'number'
+        ? this.excelSerialToDateString(rawDateVal)
+        : String(rawDateVal || '').trim();
+
+      if (!rawDate) continue;
+
+      let isCredit: boolean;
+      let normalizedAmount: number;
+      let rawDesc: string;
+
+      if (isBIDV) {
+        const debit = this.parseNumber(row[2]);
+        const credit = this.parseNumber(row[3]);
+        isCredit = credit > 0;
+        normalizedAmount = isCredit ? credit : debit;
+        rawDesc = String(row[5] || '').trim();
+      } else {
+        const amount = this.parseNumber(row[2]);
+        if (amount === 0) continue;
+        isCredit = amount > 0;
+        normalizedAmount = Math.abs(amount);
+        rawDesc = String(row[4] || '').trim();
+      }
+
+      if (normalizedAmount === 0) continue;
+
+      // Parse date DD/MM/YYYY HH:MM:SS → YYYY-MM-DD
+      let normalizedDate = new Date().toISOString().split('T')[0];
+      const dateOnly = rawDate.split(' ')[0];
+      const dateParts = dateOnly.split('/');
+      if (dateParts.length === 3) {
+        normalizedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+      }
+
+      // Scan category columns for allocations
+      const allocations: ClassifiedAllocation[] = [];
+      for (const { col, code } of categoryColumns) {
+        const val = this.parseNumber(row[col]);
+        if (val !== 0) {
+          allocations.push({ category_code: code, amount: val });
+        }
+      }
+
+      // Skip rows with no allocations (unclassified)
+      if (allocations.length === 0) continue;
+
+      const splitMode: SplitMode = allocations.length > 1 ? 'horizontal' : 'direct';
+
+      transactions.push({
+        raw_date: rawDate,
+        raw_desc: rawDesc || '',
+        raw_reference: rawReference,
+        normalized_date: normalizedDate,
+        normalized_amount: normalizedAmount,
+        type: isCredit ? 'credit' : 'debit',
+        split_mode: splitMode,
+        sender_name: null,
+        allocations,
+        status: 'confirmed',
+        notes: null,
+      });
+    }
+
+    return transactions;
   }
 
   private parseNumber(value: any): number {

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
-import type { TransactionFilters as TFilters, CategoryOption, BatchOption } from './types';
+import type { TransactionFilters as TFilters, CategoryOption } from './types';
 import { EMPTY_FILTERS } from './types';
 
 interface TransactionFiltersProps {
   filters: TFilters;
   categories: CategoryOption[];
-  batches: BatchOption[];
   onFilterChange: (patch: Partial<TFilters>) => void;
   onReset: () => void;
 }
@@ -15,19 +14,17 @@ interface TransactionFiltersProps {
 export function TransactionFilters({
   filters,
   categories,
-  batches,
   onFilterChange,
   onReset,
 }: TransactionFiltersProps) {
   const [expanded, setExpanded] = useState(false);
 
   const activeFilterCount = Object.entries(filters).filter(
-    ([key, val]) => val !== '' && val !== EMPTY_FILTERS[key as keyof TFilters]
+    ([key, val]) => val !== EMPTY_FILTERS[key as keyof TFilters]
   ).length;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-      {/* Search bar + toggle */}
       <div className="p-4 flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -41,7 +38,7 @@ export function TransactionFilters({
         </div>
 
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setExpanded((prev) => !prev)}
           className={clsx(
             'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors',
             expanded
@@ -65,24 +62,14 @@ export function TransactionFilters({
             className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <X className="w-3.5 h-3.5" />
-            Xoá lọc
+            Xóa lọc
           </button>
         )}
       </div>
 
-      {/* Expanded filters */}
       {expanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {/* Batch */}
-            <FilterSelect
-              label="Batch"
-              value={filters.batch_id}
-              onChange={(v) => onFilterChange({ batch_id: v })}
-              options={batches.map((b) => ({ value: b.id, label: b.filename }))}
-            />
-
-            {/* Status */}
             <FilterSelect
               label="Trạng thái"
               value={filters.status}
@@ -92,55 +79,37 @@ export function TransactionFilters({
                 { value: 'classified', label: 'Đã phân loại' },
                 { value: 'confirmed', label: 'Đã xác nhận' },
                 { value: 'exported', label: 'Đã xuất' },
+                { value: 'matched', label: 'Đã khớp' },
+                { value: 'mismatched', label: 'Sai sót' },
               ]}
             />
 
-            {/* Type */}
             <FilterSelect
-              label="Loại"
-              value={filters.type}
-              onChange={(v) => onFilterChange({ type: v as TFilters['type'] })}
-              options={[
-                { value: 'credit', label: 'Thu (Credit)' },
-                { value: 'debit', label: 'Chi (Debit)' },
-              ]}
-            />
-
-            {/* Suggested Category */}
-            <FilterSelect
-              label="Gợi ý đầu mục"
+              label="Gợi ý danh mục"
               value={filters.suggested_category_id}
               onChange={(v) => onFilterChange({ suggested_category_id: v })}
-              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              options={categories.map((category) => ({ value: category.id, label: category.name }))}
             />
 
-            {/* Confirmed Category */}
-            <FilterSelect
-              label="Đầu mục xác nhận"
-              value={filters.confirmed_category_id}
-              onChange={(v) => onFilterChange({ confirmed_category_id: v })}
-              options={categories.map((c) => ({ value: c.id, label: c.name }))}
-            />
-
-            {/* Date range */}
             <FilterDate
               label="Từ ngày"
               value={filters.date_from}
               onChange={(v) => onFilterChange({ date_from: v })}
             />
+
             <FilterDate
               label="Đến ngày"
               value={filters.date_to}
               onChange={(v) => onFilterChange({ date_to: v })}
             />
 
-            {/* Amount range */}
             <FilterNumber
               label="Số tiền từ"
               value={filters.amount_min}
               onChange={(v) => onFilterChange({ amount_min: v })}
               placeholder="0"
             />
+
             <FilterNumber
               label="Số tiền đến"
               value={filters.amount_max}
@@ -153,8 +122,6 @@ export function TransactionFilters({
     </div>
   );
 }
-
-// --- Sub-components ---
 
 function FilterSelect({
   label,

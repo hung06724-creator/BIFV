@@ -60,7 +60,6 @@ export function TransactionListView() {
     pagination,
     filters,
     categories,
-    batches,
     activeBank,
     setActiveBank,
     bidvCount,
@@ -69,11 +68,13 @@ export function TransactionListView() {
     resetFilters,
     goToPage,
     updateCategory,
+    confirmTransaction,
     updateSplitMode,
     reclassify,
   } = useTransactionList();
   const [searchParams] = useSearchParams();
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const classifiedInputRef = useRef<HTMLInputElement>(null);
   const { loading: classifiedLoading, error: classifiedError, importedCount, importFile } = useImportClassified();
 
@@ -84,7 +85,29 @@ export function TransactionListView() {
     }
   }, [searchParams, filters.batch_id, updateFilters]);
 
-  const months = useMemo(() => groupByMonth(filteredTransactions), [filteredTransactions]);
+  // Extract available years and auto-select the latest
+  const availableYears = useMemo(() => {
+    const yearSet = new Set<string>();
+    for (const t of filteredTransactions) {
+      const year = t.normalized_date.substring(0, 4);
+      if (year.length === 4) yearSet.add(year);
+    }
+    return [...yearSet].sort((a, b) => b.localeCompare(a));
+  }, [filteredTransactions]);
+
+  useEffect(() => {
+    if (availableYears.length > 0 && (!selectedYear || !availableYears.includes(selectedYear))) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [availableYears, selectedYear]);
+
+  // Filter transactions by selected year, then group by month
+  const yearFilteredTransactions = useMemo(
+    () => selectedYear ? filteredTransactions.filter((t) => t.normalized_date.startsWith(selectedYear)) : filteredTransactions,
+    [filteredTransactions, selectedYear]
+  );
+
+  const months = useMemo(() => groupByMonth(yearFilteredTransactions), [yearFilteredTransactions]);
 
   // Auto-expand if only one month
   useEffect(() => {
@@ -104,24 +127,31 @@ export function TransactionListView() {
 
   const bankCounts: Record<BankTab, number> = { BIDV: bidvCount, AGRIBANK: agribankCount };
 
-  // Stat counts from allTransactions (unfiltered for current bank)
-  const pendingCount = allTransactions.filter((t) => t.status === 'pending_classification').length;
-  const classifiedCount = allTransactions.filter((t) => t.status === 'classified').length;
-  const horizontalCount = allTransactions.filter((t) => t.split_mode === 'horizontal').length;
-  const verticalCount = allTransactions.filter((t) => t.split_mode === 'vertical').length;
-  const splitReviewCount = allTransactions.filter((t) => t.split_mode !== 'direct').length;
+  // Stat counts scoped to selected year
+  const yearTransactions = useMemo(
+    () => selectedYear ? allTransactions.filter((t) => t.normalized_date.startsWith(selectedYear)) : allTransactions,
+    [allTransactions, selectedYear]
+  );
+  const pendingCount = yearTransactions.filter((t) => t.status === 'pending_classification').length;
+  const classifiedCount = yearTransactions.filter((t) => t.status === 'classified').length;
+  const horizontalCount = yearTransactions.filter((t) => t.split_mode === 'horizontal').length;
+  const verticalCount = yearTransactions.filter((t) => t.split_mode === 'vertical').length;
+  const splitReviewCount = yearTransactions.filter((t) => t.split_mode !== 'direct').length;
 
-  type BadgeFilter = { status?: string; split_mode?: string };
+  type BadgeFilter = { status?: string; split_mode?: string; needs_review?: boolean };
 
   const handleBadgeClick = (badge: BadgeFilter) => {
     // Toggle: if already active, clear
     const isStatusActive = badge.status && filters.status === badge.status;
     const isSplitActive = badge.split_mode && filters.split_mode === badge.split_mode;
+    const isReviewActive = Boolean(badge.needs_review && filters.needs_review);
 
     if (badge.status) {
-      updateFilters({ status: isStatusActive ? '' : badge.status as any, split_mode: '' });
+      updateFilters({ status: isStatusActive ? '' : badge.status as any, split_mode: '', needs_review: false });
     } else if (badge.split_mode) {
-      updateFilters({ split_mode: isSplitActive ? '' : badge.split_mode as any, status: '' });
+      updateFilters({ split_mode: isSplitActive ? '' : badge.split_mode as any, status: '', needs_review: false });
+    } else if (badge.needs_review) {
+      updateFilters({ needs_review: !isReviewActive, status: '', split_mode: '' });
     }
   };
 
@@ -152,8 +182,28 @@ export function TransactionListView() {
         ))}
       </div>
 
+      {availableYears.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">Năm:</span>
+          {availableYears.map((year) => (
+            <button
+              key={year}
+              onClick={() => { setSelectedYear(year); setExpandedMonths(new Set()); }}
+              className={clsx(
+                'rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors',
+                selectedYear === year
+                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              {year}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <StatBadge label="Tổng" value={allTransactions.length} color="gray" />
+        <StatBadge label="Tổng" value={yearTransactions.length} color="gray" />
         <StatBadge
           label="Chờ phân loại"
           value={pendingCount}
@@ -189,6 +239,8 @@ export function TransactionListView() {
           value={splitReviewCount}
           color="red"
           icon={Split}
+          active={filters.needs_review}
+          onClick={() => handleBadgeClick({ needs_review: true })}
         />
         <div className="ml-auto flex items-center gap-2">
           <input
@@ -213,8 +265,8 @@ export function TransactionListView() {
             {classifiedLoading ? 'Đang import...' : 'Nhập dữ liệu đã phân loại'}
           </button>
           <button
-            onClick={() => exportTransactionsToExcel(filteredTransactions, categories, activeBank)}
-            disabled={filteredTransactions.length === 0}
+            onClick={() => exportTransactionsToExcel(yearFilteredTransactions, categories, activeBank)}
+            disabled={yearFilteredTransactions.length === 0}
             className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
@@ -243,7 +295,6 @@ export function TransactionListView() {
       <TransactionFilters
         filters={filters}
         categories={categories}
-        batches={batches}
         onFilterChange={updateFilters}
         onReset={resetFilters}
       />
@@ -259,7 +310,7 @@ export function TransactionListView() {
             const monthPaged = month.transactions;
 
             return (
-              <div key={month.key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <div key={month.key} className="bg-white border border-gray-200 rounded-xl shadow-sm">
                 <button
                   onClick={() => toggleMonth(month.key)}
                   className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
@@ -294,19 +345,23 @@ export function TransactionListView() {
 
                 {isExpanded && (
                   <div className="border-t border-gray-100">
-                    <TransactionTable
-                      transactions={monthPaged}
-                      pagination={{
-                        page: 1,
-                        page_size: monthPaged.length,
-                        total_items: monthPaged.length,
-                        total_pages: 1,
-                      }}
-                      categories={categories}
-                      onUpdateCategory={updateCategory}
-                      onUpdateSplitMode={updateSplitMode}
-                      onGoToPage={() => {}}
-                    />
+                    <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+                      <TransactionTable
+                        transactions={monthPaged}
+                        pagination={{
+                          page: 1,
+                          page_size: monthPaged.length,
+                          total_items: monthPaged.length,
+                          total_pages: 1,
+                        }}
+                        categories={categories}
+                        onUpdateCategory={updateCategory}
+                        onConfirmTransaction={confirmTransaction}
+                        onUpdateSplitMode={updateSplitMode}
+                        onGoToPage={() => {}}
+                        isInsideScrollContext={true}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

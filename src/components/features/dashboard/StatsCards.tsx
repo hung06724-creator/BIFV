@@ -30,17 +30,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
     iconBg: string;
   }[] = [
     {
-      label: 'Tổng giao dịch',
-      value: VN.format(stats.total_transactions),
-      sub: `${VN.format(stats.by_status.exported)} đã xuất`,
-      icon: BarChart3,
-      color: 'text-gray-800',
-      iconBg: 'bg-gray-100 text-gray-600',
-    },
-    {
-      label: 'Tổng thu (Credit)',
+      label: 'Tổng thu',
       value: `${formatMoney(stats.total_credit)} đ`,
-      sub: `Chi: ${formatMoney(stats.total_debit)} đ`,
+      sub: `Tổng chi: ${formatMoney(stats.total_debit)} đ`,
       icon: ArrowUpRight,
       color: 'text-green-700',
       iconBg: 'bg-green-100 text-green-600',
@@ -54,9 +46,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
       iconBg: 'bg-red-100 text-red-600',
     },
     {
-      label: 'Chờ review',
+      label: 'Chờ duyệt',
       value: VN.format(stats.pending_review),
-      sub: 'Classified, chưa duyệt',
+      sub: 'Đã phân loại, chờ duyệt',
       icon: Clock,
       color: 'text-amber-700',
       iconBg: 'bg-amber-100 text-amber-600',
@@ -72,7 +64,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (

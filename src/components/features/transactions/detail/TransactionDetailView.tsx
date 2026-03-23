@@ -9,10 +9,11 @@ import {
   X,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useTransactionDetail } from './useTransactionDetail';
 import { ClassificationPanel } from './ClassificationPanel';
 import { CopyAllocationModal } from './CopyAllocationModal';
+import { useAppStore } from '@/lib/store';
 
 interface TransactionDetailViewProps {
   transactionId: string;
@@ -27,9 +28,21 @@ export function TransactionDetailView({
   variant = 'page',
   onClose,
 }: TransactionDetailViewProps) {
-  const { transaction, categories, loading, error, updateAllocation, addAllocation, removeAllocation, copyAllocationsFrom, confirmAllocations } = useTransactionDetail(transactionId);
+  const { transaction, categories, loading, error, updateAllocation, addAllocation, removeAllocation, copyAllocationsFrom, confirmAllocations, saveNote, clearNote, transactionNote } = useTransactionDetail(transactionId);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isModal = variant === 'modal';
+
+  const handleSave = useCallback((note: string) => {
+    saveNote(note);
+    confirmAllocations(note);
+    setSavedFeedback(true);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setSavedFeedback(false);
+    }, 2000);
+  }, [saveNote, confirmAllocations]);
 
   if (error) {
     return (
@@ -75,6 +88,14 @@ export function TransactionDetailView({
     },
     [transaction, updateAllocation]
   );
+
+  const tuitionSaved = useAppStore((s) => s.tuitionRecords);
+  const extractedStudent = useMemo(() => {
+    if (!transaction) return null;
+    const rec = tuitionSaved?.find(r => r.transactionId === transaction.id);
+    if (rec?.confirmedStudent) return rec.confirmedStudent;
+    return null;
+  }, [transaction, tuitionSaved]);
 
   return (
     <div className={clsx('space-y-5', isModal && 'max-h-[80vh] overflow-y-auto pr-1')}>
@@ -124,12 +145,29 @@ export function TransactionDetailView({
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Người chuyển</p>
-        <p className="mt-2 text-lg font-semibold text-gray-900">
-          {transaction.parsed.sender_name || transaction.parsed.transfer_ref || 'Chưa xác định'}
-        </p>
-      </div>
+      {extractedStudent && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Người chuyển</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-gray-400">Mã hồ sơ</p>
+              <p className="font-semibold text-gray-900 truncate" title={extractedStudent.maHoSo}>{extractedStudent.maHoSo}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Họ và tên</p>
+              <p className="font-semibold text-gray-900 truncate" title={extractedStudent.hoTen}>{extractedStudent.hoTen}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Ngày sinh</p>
+              <p className="font-semibold text-gray-900 truncate" title={extractedStudent.ngaySinh}>{extractedStudent.ngaySinh}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Lớp</p>
+              <p className="font-semibold text-gray-900 truncate" title={extractedStudent.nganh || extractedStudent.lop}>{extractedStudent.nganh || extractedStudent.lop}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ClassificationPanel
         categories={categories}
@@ -140,9 +178,18 @@ export function TransactionDetailView({
         onAddAllocation={addAllocation}
         onRemoveAllocation={removeAllocation}
         onCopyAllocations={transaction.split_mode === 'horizontal' ? () => setShowCopyModal(true) : undefined}
-        onSave={() => confirmAllocations('')}
+        onSave={handleSave}
+        onDeleteNote={clearNote}
         onAdjustRemaining={transaction.split_mode !== 'direct' ? adjustRemaining : undefined}
+        initialNote={transactionNote}
       />
+
+      {savedFeedback && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 shadow-sm animate-pulse">
+          <Check className="h-4 w-4" />
+          Đã lưu ghi chú thành công!
+        </div>
+      )}
 
       {showCopyModal && (
         <CopyAllocationModal

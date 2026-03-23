@@ -3,15 +3,16 @@ import type {
   TransactionListItem,
   TransactionFilters,
   Pagination,
-  CategoryOption,
-  BatchOption,
 } from './types';
 import { EMPTY_FILTERS } from './types';
 import { useAppStore } from '@/lib/store';
 import { ClassificationService } from '@/services/classification.service';
-import { BankTransaction } from '@/domain/types';
+import { AllocationService } from '@/services/allocation.service';
+import type { BankTransaction } from '@/domain/types';
 
 const PAGE_SIZE = 50;
+const classifier = new ClassificationService();
+const allocationService = new AllocationService();
 
 export function useTransactionList() {
   const activeBank = useAppStore((s) => s.activeBank);
@@ -21,6 +22,7 @@ export function useTransactionList() {
   const categories = useAppStore((s) => s.categories);
   const batches = useAppStore((s) => s.batches);
   const rules = useAppStore((s) => s.rules);
+  const updateTransactionsInStore = useAppStore((s) => s.updateTransactions);
 
   const [filters, setFilters] = useState<TransactionFilters>(EMPTY_FILTERS);
   const [pagination, setPagination] = useState<Pagination>({
@@ -33,10 +35,18 @@ export function useTransactionList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Select transactions based on active bank tab
-  const allTransactions = activeBank === 'BIDV' ? bidvTransactions : agribankTransactions;
+  const bankTransactions = activeBank === 'BIDV' ? bidvTransactions : agribankTransactions;
+  const allTransactions = useMemo(() => bankTransactions.filter((t) => t.type === 'credit'), [bankTransactions]);
 
-  // Apply client-side filtering
+  const bidvCreditCount = useMemo(
+    () => bidvTransactions.reduce((n, t) => n + (t.type === 'credit' ? 1 : 0), 0),
+    [bidvTransactions]
+  );
+  const agribankCreditCount = useMemo(
+    () => agribankTransactions.reduce((n, t) => n + (t.type === 'credit' ? 1 : 0), 0),
+    [agribankTransactions]
+  );
+
   const filteredTransactions = useMemo(() => {
     let result = [...allTransactions];
 
@@ -46,7 +56,8 @@ export function useTransactionList() {
         (t) =>
           t.raw_desc?.toLowerCase().includes(q) ||
           t.sender_name?.toLowerCase().includes(q) ||
-          t.raw_reference?.toLowerCase().includes(q)
+          t.raw_reference?.toLowerCase().includes(q) ||
+          t.allocations.some((allocation) => allocation.beneficiary_name?.toLowerCase().includes(q))
       );
     }
     if (filters.batch_id) {
@@ -58,14 +69,20 @@ export function useTransactionList() {
     if (filters.type) {
       result = result.filter((t) => t.type === filters.type);
     }
+    if (filters.split_mode) {
+      result = result.filter((t) => t.split_mode === filters.split_mode);
+    }
+    if (filters.needs_review) {
+      result = result.filter((t) => t.split_mode !== 'direct');
+    }
     if (filters.suggested_category_id) {
-      result = result.filter(
-        (t) => t.match?.suggested_category_id === filters.suggested_category_id
+      result = result.filter((t) =>
+        t.allocations.some((allocation) => allocation.suggested_category_id === filters.suggested_category_id)
       );
     }
     if (filters.confirmed_category_id) {
-      result = result.filter(
-        (t) => t.match?.confirmed_category_id === filters.confirmed_category_id
+      result = result.filter((t) =>
+        t.allocations.some((allocation) => allocation.confirmed_category_id === filters.confirmed_category_id)
       );
     }
     if (filters.date_from) {
@@ -75,24 +92,22 @@ export function useTransactionList() {
       result = result.filter((t) => t.normalized_date <= filters.date_to);
     }
     if (filters.amount_min) {
-      const min = parseFloat(filters.amount_min);
-      if (!isNaN(min)) result = result.filter((t) => t.normalized_amount >= min);
+      const min = Number.parseFloat(filters.amount_min);
+      if (!Number.isNaN(min)) result = result.filter((t) => t.normalized_amount >= min);
     }
     if (filters.amount_max) {
-      const max = parseFloat(filters.amount_max);
-      if (!isNaN(max)) result = result.filter((t) => t.normalized_amount <= max);
+      const max = Number.parseFloat(filters.amount_max);
+      if (!Number.isNaN(max)) result = result.filter((t) => t.normalized_amount <= max);
     }
 
     return result;
   }, [allTransactions, filters]);
 
-  // Paginated slice
   const pagedTransactions = useMemo(() => {
     const start = (pagination.page - 1) * pagination.page_size;
     return filteredTransactions.slice(start, start + pagination.page_size);
   }, [filteredTransactions, pagination.page, pagination.page_size]);
 
-  // Keep pagination in sync with filtered count
   const currentPagination = useMemo<Pagination>(
     () => ({
       ...pagination,
@@ -116,7 +131,6 @@ export function useTransactionList() {
     setPagination((prev) => ({ ...prev, page }));
   }, []);
 
-  // Selection
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -137,42 +151,21 @@ export function useTransactionList() {
     setSelectedIds(new Set());
   }, []);
 
-  // Helper to get the store key for current bank
-  const storeKey = activeBank === 'BIDV' ? 'bidvTransactions' : 'agribankTransactions';
-
   const mapTxns = useCallback(
     (mapper: (t: TransactionListItem) => TransactionListItem) => {
-      const current = useAppStore.getState()[storeKey];
-      useAppStore.setState({ [storeKey]: current.map(mapper) });
+      updateTransactionsInStore(activeBank, mapper);
     },
-    [storeKey]
+    [activeBank, updateTransactionsInStore]
   );
 
-  // Bulk actions (in-memory)
   const bulkAssignCategory = useCallback(
     async (categoryId: string) => {
       setLoading(true);
       try {
-        const cat = categories.find((c) => c.id === categoryId);
+        const category = categories.find((c) => c.id === categoryId);
         mapTxns((t) => {
           if (!selectedIds.has(t.id)) return t;
-          return {
-            ...t,
-            status: 'confirmed' as const,
-            match: {
-              ...(t.match || {
-                suggested_category_id: null,
-                suggested_category_code: null,
-                suggested_category_name: null,
-                confidence_score: 0,
-                is_manually_overridden: false,
-              }),
-              confirmed_category_id: categoryId,
-              confirmed_category_code: cat?.code || null,
-              confirmed_category_name: cat?.name || null,
-              is_manually_overridden: true,
-            },
-          };
+          return allocationService.applyTransactionCategorySelection(t, category, true);
         });
         clearSelection();
       } finally {
@@ -186,16 +179,21 @@ export function useTransactionList() {
     setLoading(true);
     try {
       mapTxns((t) => {
-        if (!selectedIds.has(t.id) || !t.match) return t;
+        if (!selectedIds.has(t.id)) return t;
+        const allocations = t.allocations.map((allocation) => ({
+          ...allocation,
+          confirmed_category_id: allocation.confirmed_category_id || allocation.suggested_category_id,
+          confirmed_category_code: allocation.confirmed_category_code || allocation.suggested_category_code,
+          confirmed_category_name: allocation.confirmed_category_name || allocation.suggested_category_name,
+          status:
+            allocation.confirmed_category_id || allocation.suggested_category_id ? 'confirmed' : allocation.status,
+        }));
+
         return {
           ...t,
-          status: 'confirmed' as const,
-          match: {
-            ...t.match,
-            confirmed_category_id: t.match.suggested_category_id,
-            confirmed_category_code: t.match.suggested_category_code,
-            confirmed_category_name: t.match.suggested_category_name,
-          },
+          allocations,
+          status: allocationService.deriveStatus(t.status, t.normalized_amount, t.split_mode, allocations),
+          match: allocationService.deriveMatch(allocations),
         };
       });
       clearSelection();
@@ -206,66 +204,87 @@ export function useTransactionList() {
 
   const updateCategory = useCallback(
     (transactionId: string, categoryId: string) => {
-      const cat = categories.find((c) => c.id === categoryId);
+      const category = categories.find((c) => c.id === categoryId);
       mapTxns((t) => {
         if (t.id !== transactionId) return t;
-        return {
-          ...t,
-          status: 'classified' as const,
-          match: {
-            ...(t.match || {
-              confidence_score: 0,
-              is_manually_overridden: false,
-              confirmed_category_id: null,
-              confirmed_category_code: null,
-              confirmed_category_name: null,
-            }),
-            suggested_category_id: categoryId,
-            suggested_category_code: cat?.code || null,
-            suggested_category_name: cat?.name || null,
-            confidence_score: 1.0,
-            is_manually_overridden: true,
-          },
-        };
+        // Direct + pending: user manually picks category → auto confirm
+        const autoConfirm = t.split_mode === 'direct' && t.status === 'pending_classification';
+        return allocationService.applyTransactionCategorySelection(t, category, autoConfirm);
       });
     },
     [categories, mapTxns]
   );
 
+  const confirmTransaction = useCallback(
+    (transactionId: string) => {
+      mapTxns((t) => {
+        if (t.id !== transactionId) return t;
+        const allocations = allocationService.confirmAllocations(t.allocations);
+        return {
+          ...t,
+          allocations,
+          status: allocationService.deriveStatus(t.status, t.normalized_amount, t.split_mode, allocations),
+          match: allocationService.deriveMatch(allocations),
+        };
+      });
+    },
+    [mapTxns]
+  );
+
+  const updateSplitMode = useCallback(
+    (transactionId: string, splitMode: TransactionListItem['split_mode']) => {
+      mapTxns((t) => {
+        if (t.id !== transactionId) return t;
+        return allocationService.applySplitModeSelection(t, splitMode);
+      });
+    },
+    [mapTxns]
+  );
+
   const reclassify = useCallback(async () => {
     setLoading(true);
     try {
-      const classifierInstance = new ClassificationService();
-      const currentRules = rules.map(r => ({
+      const currentRules = rules.map((r) => ({
         ...r,
         amount_min: r.amount_min ?? undefined,
         amount_max: r.amount_max ?? undefined,
       }));
 
       mapTxns((t) => {
-        if (t.status !== 'pending_classification') return t;
-        if (t.type === 'debit') return t; // Chỉ phân loại ghi có
+        if (t.status === 'confirmed' || t.status === 'exported' || t.status === 'classified' || t.type === 'debit') return t;
 
-        const matchResult = classifierInstance.evaluateRules(t as any as BankTransaction, currentRules as any);
+        const allocations = t.allocations.map((allocation) => {
+          if (allocation.confirmed_category_id) {
+            return allocation;
+          }
 
-        if (matchResult.suggested_category_id) {
-          const cat = categories.find(c => c.id === matchResult.suggested_category_id);
+          const matchResult = classifier.evaluateRules(t as unknown as BankTransaction, currentRules as any);
+          if (!matchResult.suggested_category_id) {
+            return {
+              ...allocation,
+              suggested_category_id: null,
+              suggested_category_code: null,
+              suggested_category_name: null,
+              status: 'draft' as const,
+            };
+          }
+
+          const category = categories.find((c) => c.id === matchResult.suggested_category_id);
           return {
-            ...t,
+            ...allocation,
+            suggested_category_id: matchResult.suggested_category_id,
+            suggested_category_code: matchResult.suggested_category_code || category?.code || null,
+            suggested_category_name: category?.name || null,
             status: 'classified' as const,
-            match: {
-              suggested_category_id: matchResult.suggested_category_id,
-              suggested_category_code: matchResult.suggested_category_code || null,
-              suggested_category_name: cat?.name || null,
-              confidence_score: matchResult.confidence_score,
-              is_manually_overridden: false,
-              confirmed_category_id: null,
-              confirmed_category_code: null,
-              confirmed_category_name: null,
-            }
           };
-        }
-        return t;
+        });
+
+        return {
+          ...t,
+          allocations,
+          status: allocationService.deriveStatus(t.status, t.normalized_amount, t.split_mode, allocations),
+          match: allocationService.deriveMatch(allocations),
+        };
       });
     } finally {
       setLoading(false);
@@ -273,6 +292,8 @@ export function useTransactionList() {
   }, [rules, categories, mapTxns]);
 
   return {
+    allTransactions,
+    filteredTransactions,
     transactions: pagedTransactions,
     pagination: currentPagination,
     filters,
@@ -283,8 +304,8 @@ export function useTransactionList() {
     error,
     activeBank,
     setActiveBank,
-    bidvCount: bidvTransactions.length,
-    agribankCount: agribankTransactions.length,
+    bidvCount: bidvCreditCount,
+    agribankCount: agribankCreditCount,
     updateFilters,
     resetFilters,
     goToPage,
@@ -292,6 +313,8 @@ export function useTransactionList() {
     toggleSelectAll,
     clearSelection,
     updateCategory,
+    confirmTransaction,
+    updateSplitMode,
     bulkAssignCategory,
     bulkConfirm,
     reclassify,

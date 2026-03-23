@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight, Calendar, TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
 import { useAppStore, type BankTab } from '@/lib/store';
@@ -48,6 +48,116 @@ function groupByMonth(transactions: TransactionListItem[]): MonthGroup[] {
   });
 }
 
+// ─── Virtual scroll for history table ─────────────────────────────────
+const HIST_ROW_H  = 40;
+const HIST_H      = 520;
+const HIST_OVSC   = 6;
+
+interface VirtualHistoryTableProps {
+  transactions: TransactionListItem[];
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+  allSelected: boolean;
+  someSelected: boolean;
+}
+
+function VirtualHistoryTable({ transactions, selectedIds, onToggle, onToggleAll, allSelected, someSelected }: VirtualHistoryTableProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  const onScroll = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (containerRef.current) setScrollTop(containerRef.current.scrollTop);
+    });
+  }, []);
+
+  const startIdx = Math.max(0, Math.floor(scrollTop / HIST_ROW_H) - HIST_OVSC);
+  const endIdx   = Math.min(
+    transactions.length - 1,
+    Math.ceil((scrollTop + HIST_H) / HIST_ROW_H) + HIST_OVSC,
+  );
+  const visible      = transactions.slice(startIdx, endIdx + 1);
+  const paddingTop    = startIdx * HIST_ROW_H;
+  const paddingBottom = Math.max(0, (transactions.length - endIdx - 1) * HIST_ROW_H);
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={onScroll}
+      style={{ height: HIST_H, overflowY: 'auto', overflowX: 'auto' }}
+      className="border-t border-gray-100"
+    >
+      <table className="min-w-full divide-y divide-gray-200 text-sm" style={{ tableLayout: 'fixed', minWidth: 700 }}>
+        <colgroup>
+          <col style={{ width: 40 }} />
+          <col style={{ width: 36 }} />
+          <col style={{ width: 110 }} />
+          <col style={{ width: 130 }} />
+          <col style={{ width: 130 }} />
+          <col />
+        </colgroup>
+        <thead className="bg-gray-50 sticky top-0 z-10">
+          <tr>
+            <th className="w-10 px-4 py-2.5 text-center">
+              <input type="checkbox" checked={allSelected}
+                ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                onChange={onToggleAll}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            </th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Thời gian</th>
+            <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Tiền ra</th>
+            <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Tiền vào</th>
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Nội dung</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {paddingTop > 0 && <tr style={{ height: paddingTop }}><td colSpan={6} /></tr>}
+          {visible.map((t, relIdx) => {
+            const idx = startIdx + relIdx;
+            return (
+              <tr key={t.id} style={{ height: HIST_ROW_H }}
+                className={clsx('hover:bg-gray-50', selectedIds.has(t.id) && 'bg-red-50/50')}>
+                <td className="px-4 py-2 text-center">
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => onToggle(t.id)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                </td>
+                <td className="px-4 py-2 text-xs text-gray-400 font-mono">{idx + 1}</td>
+                <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{t.raw_date}</td>
+                <td className="px-4 py-2 text-xs text-right font-mono">
+                  {t.debit_amount > 0
+                    ? <span className="text-red-600 font-medium">{VN.format(t.debit_amount)}</span>
+                    : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="px-4 py-2 text-xs text-right font-mono">
+                  {t.credit_amount > 0
+                    ? <span className="text-green-600 font-medium">{VN.format(t.credit_amount)}</span>
+                    : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="px-4 py-2 text-xs text-gray-700 truncate" title={t.raw_desc}>{t.raw_desc}</td>
+              </tr>
+            );
+          })}
+          {paddingBottom > 0 && <tr style={{ height: paddingBottom }}><td colSpan={6} /></tr>}
+        </tbody>
+        <tfoot className="sticky bottom-0 bg-gray-50 border-t border-gray-200">
+          <tr>
+            <td colSpan={6} className="px-4 py-1.5 text-xs text-gray-400">
+              {transactions.length} giao dịch
+              {transactions.length > 50 && ` · hiển thị ${visible.length} trong viewport (cuộn để xem thêm)`}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+// ───────────────────────────────────────────────────────────────
+
 export function TransactionHistory() {
   const bidv = useAppStore((s) => s.bidvTransactions);
   const agri = useAppStore((s) => s.agribankTransactions);
@@ -56,9 +166,30 @@ export function TransactionHistory() {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string>('');
 
   const transactions = activeBank === 'BIDV' ? bidv : agri;
-  const months = useMemo(() => groupByMonth(transactions), [transactions]);
+
+  const availableYears = useMemo(() => {
+    const yearSet = new Set<string>();
+    for (const t of transactions) {
+      const year = t.normalized_date.substring(0, 4);
+      if (year.length === 4) yearSet.add(year);
+    }
+    return [...yearSet].sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
+  useEffect(() => {
+    if (availableYears.length > 0 && (!selectedYear || !availableYears.includes(selectedYear))) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [availableYears, selectedYear]);
+
+  const yearFiltered = useMemo(
+    () => selectedYear ? transactions.filter((t) => t.normalized_date.startsWith(selectedYear)) : transactions,
+    [transactions, selectedYear]
+  );
+  const months = useMemo(() => groupByMonth(yearFiltered), [yearFiltered]);
 
   const toggleMonth = (key: string) => {
     setExpandedMonths((prev) => {
@@ -125,6 +256,27 @@ export function TransactionHistory() {
           </button>
         ))}
       </div>
+
+      {/* Year tabs */}
+      {availableYears.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">Năm:</span>
+          {availableYears.map((year) => (
+            <button
+              key={year}
+              onClick={() => { setSelectedYear(year); setExpandedMonths(new Set()); setSelectedIds(new Set()); }}
+              className={clsx(
+                'rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors',
+                selectedYear === year
+                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              {year}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
@@ -224,67 +376,15 @@ export function TransactionHistory() {
                   </button>
                 </div>
 
-                {/* Transactions table */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="w-10 px-4 py-2.5 text-center">
-                            <input
-                              type="checkbox"
-                              checked={allMonthSelected}
-                              ref={(el) => { if (el) el.indeterminate = selectedInMonth > 0 && !allMonthSelected; }}
-                              onChange={() => toggleMonthAll(month)}
-                              className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                          </th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-10">#</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Thời gian</th>
-                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Tiền ra</th>
-                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Tiền vào</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-[40%]">Nội dung</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {month.transactions.map((t, idx) => (
-                          <tr
-                            key={t.id}
-                            className={clsx(
-                              'hover:bg-gray-50',
-                              selectedIds.has(t.id) && 'bg-red-50/50'
-                            )}
-                          >
-                            <td className="px-4 py-2 text-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(t.id)}
-                                onChange={() => toggleSelect(t.id)}
-                                className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-xs text-gray-400 font-mono">{idx + 1}</td>
-                            <td className="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">{t.raw_date}</td>
-                            <td className="px-4 py-2 text-xs text-right font-mono">
-                              {t.debit_amount > 0
-                                ? <span className="text-red-600 font-medium">{VN.format(t.debit_amount)}</span>
-                                : <span className="text-gray-300">—</span>
-                              }
-                            </td>
-                            <td className="px-4 py-2 text-xs text-right font-mono">
-                              {t.credit_amount > 0
-                                ? <span className="text-green-600 font-medium">{VN.format(t.credit_amount)}</span>
-                                : <span className="text-gray-300">—</span>
-                              }
-                            </td>
-                            <td className="px-4 py-2 text-xs text-gray-700 truncate max-w-[400px]" title={t.raw_desc}>
-                              {t.raw_desc}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <VirtualHistoryTable
+                    transactions={month.transactions}
+                    selectedIds={selectedIds}
+                    onToggle={toggleSelect}
+                    onToggleAll={() => toggleMonthAll(month)}
+                    allSelected={allMonthSelected}
+                    someSelected={selectedInMonth > 0 && !allMonthSelected}
+                  />
                 )}
               </div>
             );

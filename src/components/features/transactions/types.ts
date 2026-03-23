@@ -1,4 +1,12 @@
-import type { TransactionStatus, TransactionType, AuditAction, RuleType } from '@/domain/types';
+import type {
+  TransactionStatus,
+  TransactionType,
+  AuditAction,
+  RuleType,
+  SplitMode,
+  AllocationType,
+  AllocationStatus,
+} from '@/domain/types';
 
 export interface TransactionMatchView {
   suggested_category_id: string | null;
@@ -9,6 +17,24 @@ export interface TransactionMatchView {
   confirmed_category_id: string | null;
   confirmed_category_code: string | null;
   confirmed_category_name: string | null;
+}
+
+export interface TransactionAllocationView {
+  id: string;
+  transaction_id: string;
+  allocation_no: number;
+  allocation_type: AllocationType;
+  amount: number;
+  suggested_category_id: string | null;
+  suggested_category_code: string | null;
+  suggested_category_name: string | null;
+  confirmed_category_id: string | null;
+  confirmed_category_code: string | null;
+  confirmed_category_name: string | null;
+  beneficiary_code: string | null;
+  beneficiary_name: string | null;
+  status: AllocationStatus;
+  notes: string | null;
 }
 
 export interface TransactionListItem {
@@ -23,9 +49,12 @@ export interface TransactionListItem {
   credit_amount: number;
   balance_after: number | null;
   type: TransactionType;
+  split_mode: SplitMode;
   status: TransactionStatus;
   sender_name: string | null;
+  allocations: TransactionAllocationView[];
   match: TransactionMatchView | null;
+  notes?: string | null;
 }
 
 export interface TransactionFilters {
@@ -33,6 +62,8 @@ export interface TransactionFilters {
   batch_id: string;
   status: TransactionStatus | '';
   type: TransactionType | '';
+  split_mode: SplitMode | '';
+  needs_review: boolean;
   suggested_category_id: string;
   confirmed_category_id: string;
   date_from: string;
@@ -68,6 +99,8 @@ export const EMPTY_FILTERS: TransactionFilters = {
   batch_id: '',
   status: '',
   type: '',
+  split_mode: '',
+  needs_review: false,
   suggested_category_id: '',
   confirmed_category_id: '',
   date_from: '',
@@ -108,6 +141,15 @@ export interface TransactionDetailMatch {
   confirmed_category_name: string | null;
 }
 
+export interface TransactionValidationState {
+  total_allocated: number;
+  remaining_amount: number;
+  is_balanced: boolean;
+  has_unconfirmed_allocations: boolean;
+  has_missing_beneficiaries: boolean;
+  can_confirm: boolean;
+}
+
 export interface AuditLogEntry {
   id: string;
   action: AuditAction;
@@ -131,10 +173,13 @@ export interface TransactionDetail {
   credit_amount: number;
   balance_after: number | null;
   type: TransactionType;
+  split_mode: SplitMode;
   status: TransactionStatus;
   created_at: string;
   updated_at: string;
   parsed: TransactionDetailParsed;
+  allocations: TransactionAllocationView[];
+  validation: TransactionValidationState;
   match: TransactionDetailMatch | null;
   audit_logs: AuditLogEntry[];
 }

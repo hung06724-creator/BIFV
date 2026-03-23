@@ -10,11 +10,69 @@ import type {
 import type { TransactionListItem } from '@/components/features/transactions/types';
 import { ParserService } from '@/services/parser.service';
 import { ClassificationService } from '@/services/classification.service';
+import { AllocationService } from '@/services/allocation.service';
 import { useAppStore } from '@/lib/store';
-import { BankTransaction } from '@/domain/types';
+import type { BankTransaction } from '@/domain/types';
 
 const parser = new ParserService();
 const classifier = new ClassificationService();
+const allocationService = new AllocationService();
+
+function classifyTransaction(
+  transaction: TransactionListItem,
+  currentRules: any[],
+  categories: Array<{ id: string; name: string; code: string }>
+) {
+  let classifiedCount = 0;
+  let highConfidenceCount = 0;
+  let lowConfidenceCount = 0;
+  const categoryCounts: Record<string, number> = {};
+
+  const allocations = transaction.allocations.map((allocation) => {
+    if (allocation.suggested_category_id || allocation.confirmed_category_id) {
+      return allocation;
+    }
+
+    const matchResult = classifier.evaluateRules(transaction as unknown as BankTransaction, currentRules as any);
+    if (!matchResult.suggested_category_id) {
+      return allocation;
+    }
+
+    classifiedCount += 1;
+    if (matchResult.confidence_score >= 0.8) highConfidenceCount += 1;
+    else lowConfidenceCount += 1;
+
+    const category = categories.find((item) => item.id === matchResult.suggested_category_id);
+    const categoryName = category?.name || 'Unknown';
+    categoryCounts[categoryName] = (categoryCounts[categoryName] || 0) + 1;
+
+    return {
+      ...allocation,
+      suggested_category_id: matchResult.suggested_category_id,
+      suggested_category_code: matchResult.suggested_category_code || category?.code || null,
+      suggested_category_name: category?.name || null,
+      status: 'classified' as const,
+    };
+  });
+
+  return {
+    transaction: {
+      ...transaction,
+      allocations,
+      status: allocationService.deriveStatus(
+        transaction.status,
+        transaction.normalized_amount,
+        transaction.split_mode,
+        allocations
+      ),
+      match: allocationService.deriveMatch(allocations),
+    },
+    classifiedCount,
+    highConfidenceCount,
+    lowConfidenceCount,
+    categoryCounts,
+  };
+}
 
 export function useImportFlow() {
   const addTransactions = useAppStore((s) => s.addTransactions);
@@ -72,17 +130,27 @@ export function useImportFlow() {
       setLoading(true);
       setError(null);
       try {
-        const parsed = await parser.parseFileBuffer(
-          fileBufferRef.current,
-          uploadResult.bank_code
-        );
+        const parsed = await parser.parseFileBuffer(fileBufferRef.current, uploadResult.bank_code);
 
-        // Save to global store
         const listItems: TransactionListItem[] = parsed.map((t, idx) => {
           const isCredit = t.type === 'credit';
           const amount = t.normalized_amount || 0;
+          const id = `${uploadResult.batch_id}-${idx}`;
+          const splitMode = allocationService.detectSplitMode({
+            raw_desc: t.raw_desc || '',
+            normalized_amount: amount,
+          });
+          const allocations = allocationService.createAllocations(
+            {
+              id,
+              raw_desc: t.raw_desc || '',
+              normalized_amount: amount,
+            },
+            categories
+          );
+
           return {
-            id: `${uploadResult.batch_id}-${idx}`,
+            id,
             batch_id: uploadResult.batch_id,
             raw_date: t.raw_date || '',
             raw_desc: t.raw_desc || '',
@@ -93,9 +161,11 @@ export function useImportFlow() {
             credit_amount: isCredit ? amount : 0,
             balance_after: null,
             type: t.type || 'credit',
-            status: 'pending_classification',
+            split_mode: splitMode,
+            status: allocationService.deriveStatus('pending_classification', amount, splitMode, allocations),
             sender_name: null,
-            match: null,
+            allocations,
+            match: allocationService.deriveMatch(allocations),
           };
         });
 
@@ -112,9 +182,10 @@ export function useImportFlow() {
           status: 'reviewing',
           total_parsed: newCount,
           total_skipped: uploadResult.total_rows - newCount,
-          skipped_reasons: duplicateCount > 0
-            ? [{ row_index: 0, reason: `${duplicateCount} giao dịch trùng đã bị loại bỏ.` }]
-            : [],
+          skipped_reasons:
+            duplicateCount > 0
+              ? [{ row_index: 0, reason: `${duplicateCount} giao dá»‹ch trÃ¹ng Ä‘Ã£ bá»‹ loáº¡i bá».` }]
+              : [],
           sample_transactions: parsed.slice(0, 10).map((t) => ({
             raw_date: t.raw_date || '',
             raw_desc: t.raw_desc || '',
@@ -127,49 +198,35 @@ export function useImportFlow() {
         setParseResult(result);
         setStep('parsing');
 
-        // Auto-classify inline using locally built result
         let classifiedCount = 0;
         let highConfidenceCount = 0;
         let lowConfidenceCount = 0;
         const categoryCounts: Record<string, number> = {};
+        const splitSummary = {
+          direct: listItems.filter((item) => item.split_mode === 'direct').length,
+          horizontal: listItems.filter((item) => item.split_mode === 'horizontal').length,
+          vertical: listItems.filter((item) => item.split_mode === 'vertical').length,
+        };
 
-        const currentRules = rules.map(r => ({
+        const currentRules = rules.map((r) => ({
           ...r,
           amount_min: r.amount_min ?? undefined,
           amount_max: r.amount_max ?? undefined,
         }));
 
         updateTransactions(uploadResult.bank_code as any, (t) => {
-          if (t.batch_id !== result.batch_id) return t;
-          if (t.type === 'debit') return t; // Chỉ phân loại ghi có
+          if (t.batch_id !== result.batch_id || t.type === 'debit') return t;
 
-          const matchResult = classifier.evaluateRules(t as any as BankTransaction, currentRules as any);
+          const classified = classifyTransaction(t, currentRules, categories);
+          classifiedCount += classified.classifiedCount;
+          highConfidenceCount += classified.highConfidenceCount;
+          lowConfidenceCount += classified.lowConfidenceCount;
 
-          if (matchResult.suggested_category_id) {
-            classifiedCount++;
-            if (matchResult.confidence_score >= 0.8) highConfidenceCount++;
-            else lowConfidenceCount++;
-
-            const catName = categories.find(c => c.id === matchResult.suggested_category_id)?.name || 'Unknown';
-            categoryCounts[catName] = (categoryCounts[catName] || 0) + 1;
-
-            return {
-              ...t,
-              status: 'classified' as const,
-              match: {
-                suggested_category_id: matchResult.suggested_category_id,
-                suggested_category_code: matchResult.suggested_category_code || null,
-                suggested_category_name: categories.find(c => c.id === matchResult.suggested_category_id)?.name || null,
-                confidence_score: matchResult.confidence_score,
-                is_manually_overridden: false,
-                confirmed_category_id: null,
-                confirmed_category_code: null,
-                confirmed_category_name: null,
-              }
-            };
+          for (const [key, value] of Object.entries(classified.categoryCounts)) {
+            categoryCounts[key] = (categoryCounts[key] || 0) + value;
           }
 
-          return t;
+          return classified.transaction;
         });
 
         const topCategories = Object.entries(categoryCounts)
@@ -195,6 +252,10 @@ export function useImportFlow() {
             low_confidence: lowConfidenceCount,
             already_confirmed: 0,
           },
+          split_summary: {
+            ...splitSummary,
+            review_required: splitSummary.horizontal + splitSummary.vertical,
+          },
           top_categories: topCategories,
         };
 
@@ -218,52 +279,35 @@ export function useImportFlow() {
       let highConfidenceCount = 0;
       let lowConfidenceCount = 0;
       const categoryCounts: Record<string, number> = {};
+      const allTransactions = uploadResult.bank_code === 'BIDV'
+        ? useAppStore.getState().bidvTransactions
+        : useAppStore.getState().agribankTransactions;
+      const batchTransactions = allTransactions.filter((item) => item.batch_id === parseResult.batch_id);
+      const splitSummary = {
+        direct: batchTransactions.filter((item) => item.split_mode === 'direct').length,
+        horizontal: batchTransactions.filter((item) => item.split_mode === 'horizontal').length,
+        vertical: batchTransactions.filter((item) => item.split_mode === 'vertical').length,
+      };
 
-      const currentRules = rules.map(r => ({
+      const currentRules = rules.map((r) => ({
         ...r,
-        id: r.id,
-        category_id: r.category_id,
-        keyword: r.keyword,
-        type: r.type,
-        priority: r.priority,
         amount_min: r.amount_min ?? undefined,
         amount_max: r.amount_max ?? undefined,
-        stop_on_match: r.stop_on_match,
-        is_active: r.is_active,
-        created_at: r.created_at,
-        updated_at: r.updated_at
       }));
 
       updateTransactions(uploadResult.bank_code as any, (t) => {
-        if (t.batch_id !== parseResult.batch_id) return t;
+        if (t.batch_id !== parseResult.batch_id || t.type === 'debit') return t;
 
-        const matchResult = classifier.evaluateRules(t as any as BankTransaction, currentRules as any);
-        
-        if (matchResult.suggested_category_id) {
-          classifiedCount++;
-          if (matchResult.confidence_score >= 0.8) highConfidenceCount++;
-          else lowConfidenceCount++;
+        const classified = classifyTransaction(t, currentRules, categories);
+        classifiedCount += classified.classifiedCount;
+        highConfidenceCount += classified.highConfidenceCount;
+        lowConfidenceCount += classified.lowConfidenceCount;
 
-          const catName = categories.find(c => c.id === matchResult.suggested_category_id)?.name || 'Unknown';
-          categoryCounts[catName] = (categoryCounts[catName] || 0) + 1;
-
-          return {
-            ...t,
-            status: 'classified' as const,
-            match: {
-              suggested_category_id: matchResult.suggested_category_id,
-              suggested_category_code: matchResult.suggested_category_code || null,
-              suggested_category_name: categories.find(c => c.id === matchResult.suggested_category_id)?.name || null,
-              confidence_score: matchResult.confidence_score,
-              is_manually_overridden: false,
-              confirmed_category_id: null,
-              confirmed_category_code: null,
-              confirmed_category_name: null,
-            }
-          };
+        for (const [key, value] of Object.entries(classified.categoryCounts)) {
+          categoryCounts[key] = (categoryCounts[key] || 0) + value;
         }
 
-        return t;
+        return classified.transaction;
       });
 
       const topCategories = Object.entries(categoryCounts)
@@ -288,6 +332,10 @@ export function useImportFlow() {
           high_confidence: highConfidenceCount,
           low_confidence: lowConfidenceCount,
           already_confirmed: 0,
+        },
+        split_summary: {
+          ...splitSummary,
+          review_required: splitSummary.horizontal + splitSummary.vertical,
         },
         top_categories: topCategories,
       };

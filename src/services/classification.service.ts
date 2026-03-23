@@ -1,5 +1,5 @@
-import { ClassificationRule, BankTransaction, TransactionMatch } from '@/domain/types';
-import { VietnameseTransactionParser, ParsedTransaction } from '@/lib/parsers/VietnameseTransactionParser';
+import { ClassificationRule, BankTransaction } from '@/domain/types';
+import { VietnameseTransactionParser, removeVietnameseTones } from '@/lib/parsers/VietnameseTransactionParser';
 
 export interface ClassificationMatchResult {
   suggested_category_id?: string;
@@ -11,20 +11,27 @@ export interface ClassificationMatchResult {
 
 export class ClassificationService {
   private parser: VietnameseTransactionParser;
+  private regexCache = new Map<string, RegExp | null>();
 
   constructor() {
     this.parser = new VietnameseTransactionParser();
   }
 
+  private getRegex(pattern: string): RegExp | null {
+    if (!this.regexCache.has(pattern)) {
+      try {
+        this.regexCache.set(pattern, new RegExp(pattern, 'i'));
+      } catch {
+        this.regexCache.set(pattern, null);
+      }
+    }
+    return this.regexCache.get(pattern)!;
+  }
+
   /**
    * Run the rule-based classification engine on a single parsed transaction.
-   * Priority of execution:
-   * 1. Exact
-   * 2. Regex
-   * 3. Keyword
-   * 4. Amount
-   * 5. Composite
-   * 6. Fallback
+   * Rules are sorted by priority (ascending). First match wins.
+   * stop_on_match halts further evaluation after a matched rule.
    */
   public evaluateRules(transaction: BankTransaction, rules: ClassificationRule[]): ClassificationMatchResult {
     // 1. Sort rules strictly by priority (lower number = runs first)
@@ -39,30 +46,31 @@ export class ClassificationService {
     const amount = transaction.normalized_amount;
 
     const matchedRules: ClassificationRule[] = [];
-    let finalRule: ClassificationRule | undefined = undefined;
+    let selectedRule: ClassificationRule | undefined;
 
     for (const rule of sortedRules) {
       if (!rule.is_active) continue;
 
       let isMatch = false;
+      // Normalize rule keyword to no-accent lowercase (same space as searchString)
+      const normalizedKeyword = removeVietnameseTones(rule.keyword);
 
       switch (rule.type) {
         case 'exact':
-          isMatch = searchString === rule.keyword.toLowerCase();
+          isMatch = searchString === normalizedKeyword;
           break;
 
-        case 'regex':
-          try {
-             const regex = new RegExp(rule.keyword, 'i');
-             isMatch = regex.test(searchString);
-          } catch (e) {
-             // invalid regex syntax, skip
+        case 'regex': {
+          const regex = this.getRegex(rule.keyword);
+          if (regex) {
+            isMatch = regex.test(searchString);
           }
           break;
+        }
 
         case 'keyword': {
           // Support multiple keywords separated by pipe `|`
-          const keywords = rule.keyword.toLowerCase().split('|').map(k => k.trim()).filter(k => k);
+          const keywords = normalizedKeyword.split('|').map(k => k.trim()).filter(k => k);
           isMatch = keywords.some(kw => searchString.includes(kw));
           break;
         }
@@ -78,7 +86,7 @@ export class ClassificationService {
 
         case 'composite': {
           // Composite requires BOTH a keyword match AND an amount boundary
-          const kwArr = (rule.keyword || '').toLowerCase().split('|').map(k => k.trim()).filter(k => k);
+          const kwArr = normalizedKeyword.split('|').map(k => k.trim()).filter(k => k);
           const hasKeyword = kwArr.length > 0 ? kwArr.some(kw => searchString.includes(kw)) : true;
           
           const meetsMin = rule.amount_min !== undefined ? amount >= rule.amount_min : true;
@@ -89,7 +97,6 @@ export class ClassificationService {
         }
 
         case 'fallback':
-          // Fallbacks always "match" but are usually placed at the very bottom (highest priority number)
           isMatch = true;
           break;
 
@@ -99,17 +106,14 @@ export class ClassificationService {
 
       if (isMatch) {
          matchedRules.push(rule);
-         finalRule = rule; // The "last" matched rule (or first, depending on how we decide)
+         selectedRule ??= rule; // First match wins (highest priority)
          if (rule.stop_on_match) {
-            break; // Immediately halt evaluation
+            break;
          }
       }
     }
 
-    // Determine the primary outcome
-    // We pick the best match (the first one that stopped execution, or simply the first one matched)
-    // Because sorted by priority ascending (1 = highest), the FIRST match is actually the strongest.
-    const selectedRule = matchedRules[0]; // Take highest priority match
+    // First match by priority is the winner
 
     if (!selectedRule) {
       return {

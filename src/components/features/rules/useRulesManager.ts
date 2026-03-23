@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { RuleListItem, RuleFormData, CategoryOption, RuleTestResult } from './types';
 import { EMPTY_FORM, CONFIDENCE_MAP } from './types';
-import { MOCK_CATEGORIES } from './mock-data';
 import { removeVietnameseTones } from '@/lib/parsers/VietnameseTransactionParser';
 import { useAppStore } from '@/lib/store';
 
 export function useRulesManager() {
   const rules = useAppStore((s) => s.rules);
+  const storeCategories = useAppStore((s) => s.categories);
   const addRule = useAppStore((s) => s.addRule);
   const updateRule = useAppStore((s) => s.updateRule);
   const deleteRuleInStore = useAppStore((s) => s.deleteRule);
@@ -19,7 +19,17 @@ export function useRulesManager() {
   const [filterActive, setFilterActive] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const categories: CategoryOption[] = MOCK_CATEGORIES;
+  const categories: CategoryOption[] = useMemo(
+    () =>
+      [...storeCategories]
+        .map((category) => ({
+          id: category.id,
+          code: category.code,
+          name: category.name,
+        }))
+        .sort((a, b) => a.code.localeCompare(b.code, 'vi')),
+    [storeCategories]
+  );
 
   const filteredRules = useMemo(() => {
     let result = [...rules].sort((a, b) => a.priority - b.priority);

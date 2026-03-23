@@ -5,12 +5,12 @@ import {
   Brain,
   CheckCircle2,
   RotateCcw,
+  ArrowLeft,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useImportFlow } from './useImportFlow';
 import { UploadDropzone } from './UploadDropzone';
 import { ImportPreview } from './ImportPreview';
-import { ColumnMapper } from './ColumnMapper';
 import { ParseStatus, ClassifyStatus } from './BatchStatus';
 import type { ImportStep } from './types';
 
@@ -112,9 +112,15 @@ export function ImportFlowView() {
 
       {step === 'preview' && uploadResult && (
         <div className="space-y-4">
-          <ColumnMapper
-            detectedColumns={uploadResult.detected_columns}
-          />
+          <div>
+            <button
+              onClick={reset}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Quay lại chọn file
+            </button>
+          </div>
           <ImportPreview
             uploadResult={uploadResult}
             onParse={() => parse()}

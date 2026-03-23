@@ -1,14 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
-import { Check, AlertTriangle, FileOutput, Clock, HelpCircle, Search } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo, useId, useCallback } from 'react';
+import { Check, FileOutput, Clock, HelpCircle, Search, ArrowRight, X, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
 import type { TransactionListItem, Pagination, CategoryOption } from './types';
+import { TransactionDetailView } from './detail/TransactionDetailView';
+import { InlineCategorySearch, categoryFrequency, recordCategoryUsage } from '@/components/shared/InlineCategorySearch';
 
 interface TransactionTableProps {
   transactions: TransactionListItem[];
   pagination: Pagination;
   categories: CategoryOption[];
   onUpdateCategory: (transactionId: string, categoryId: string) => void;
+  onConfirmTransaction?: (transactionId: string) => void;
+  onUpdateSplitMode: (transactionId: string, splitMode: TransactionListItem['split_mode']) => void;
   onGoToPage: (page: number) => void;
+  onDeleteTransactions?: (ids: Set<string>) => void;
 }
 
 const VN_NUMBER = new Intl.NumberFormat('vi-VN');
@@ -22,12 +27,8 @@ function ConfidenceBadge({ score }: { score: number }) {
   return (
     <span
       className={clsx(
-        'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold',
-        pct >= 85
-          ? 'bg-green-100 text-green-700'
-          : pct >= 50
-            ? 'bg-yellow-100 text-yellow-700'
-            : 'bg-red-100 text-red-700'
+        'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono font-bold',
+        pct >= 85 ? 'bg-green-100 text-green-700' : pct >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
       )}
     >
       {pct}%
@@ -41,101 +42,81 @@ function StatusBadge({ status }: { status: TransactionListItem['status'] }) {
     classified: { label: 'Đã phân loại', icon: HelpCircle, cls: 'bg-blue-100 text-blue-700' },
     confirmed: { label: 'Đã xác nhận', icon: Check, cls: 'bg-green-100 text-green-700' },
     exported: { label: 'Đã xuất', icon: FileOutput, cls: 'bg-purple-100 text-purple-700' },
+    matched: { label: 'Đã khớp', icon: CheckCircle2, cls: 'bg-green-100 text-green-700' },
+    mismatched: { label: 'Sai sót', icon: AlertCircle, cls: 'bg-red-100 text-red-600' },
   }[status];
 
   const Icon = config.icon;
 
   return (
-    <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', config.cls)}>
-      <Icon className="w-3 h-3" />
+    <span className={clsx('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', config.cls)}>
+      <Icon className="h-3 w-3" />
       {config.label}
     </span>
   );
 }
 
-function InlineCategorySearch({
-  currentName,
-  currentCode,
+
+
+function BulkCategoryDropdown({
   categories,
   onSelect,
+  onClose,
 }: {
-  currentName: string | null;
-  currentCode: string | null;
   categories: CategoryOption[];
   onSelect: (categoryId: string) => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery('');
+        onClose();
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [onClose]);
 
-  const filtered = categories.filter((c) => {
-    if (!query) return true;
+  const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
-  });
-
-  const displayValue = open ? query : (currentName || '');
+    if (!q) {
+      return [...categories].sort((a, b) => (categoryFrequency[b.id] || 0) - (categoryFrequency[a.id] || 0));
+    }
+    return categories.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    );
+  }, [categories, query]);
 
   return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+    <div ref={ref} className="absolute left-0 top-full z-40 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-xl">
+      <div className="border-b border-gray-100 p-2">
         <input
-          ref={inputRef}
+          autoFocus
           type="text"
-          value={displayValue}
-          placeholder="Chọn hoặc tìm..."
-          onFocus={() => {
-            setOpen(true);
-            setQuery('');
-          }}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (!open) setOpen(true);
-          }}
-          className={clsx(
-            'w-full pl-6 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500',
-            currentName ? 'border-indigo-200 bg-indigo-50/50 text-indigo-700' : 'border-gray-200 text-gray-600'
-          )}
-          title={currentName || ''}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Tìm danh mục..."
+          className="w-full rounded-md border border-gray-200 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
-      {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-gray-400">Không tìm thấy</div>
-          ) : (
-            filtered.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  onSelect(cat.id);
-                  setOpen(false);
-                  setQuery('');
-                }}
-                className={clsx(
-                  'w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-gray-50 last:border-0',
-                  currentCode === cat.code && 'bg-indigo-50 text-indigo-700 font-medium'
-                )}
-              >
-                {cat.name}
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      <div className="max-h-48 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-gray-400">Không tìm thấy</div>
+        ) : (
+          filtered.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => onSelect(cat.id)}
+              className="w-full border-b border-gray-50 px-3 py-1.5 text-left text-xs transition-colors last:border-0 hover:bg-indigo-50 hover:text-indigo-700"
+            >
+              {cat.name}
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -145,168 +126,405 @@ export function TransactionTable({
   pagination,
   categories,
   onUpdateCategory,
+  onConfirmTransaction,
+  onUpdateSplitMode,
   onGoToPage,
-}: TransactionTableProps) {
+  onDeleteTransactions,
+  isInsideScrollContext,
+}: TransactionTableProps & { isInsideScrollContext?: boolean }) {
+  const tableId = useId();
+  const [reviewTransactionId, setReviewTransactionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [autoFocusTransactionId, setAutoFocusTransactionId] = useState<string | null>(null);
+
+  // Virtual Scroll State
+  const [scrollTop, setScrollTop] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Constants
+  const ROW_H = 84; // Fixed height per row allowing for multi-line content
+  const VIEWPORT_H = 560; // Max height of scroll context
+  const OVERSCAN = 5;
+
+  // Track scrolling if we are inside a scrollable div
+  useEffect(() => {
+    if (!isInsideScrollContext) return;
+    const parentContainer = document.querySelector(`[data-table-id="${tableId}"]`)?.closest('div[style*="overflow"]');
+    if (!parentContainer) return;
+
+    const handleScroll = (e: Event) => {
+      if (rafRef.current !== null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        setScrollTop((e.target as HTMLDivElement).scrollTop);
+      });
+    };
+
+    parentContainer.addEventListener('scroll', handleScroll);
+    return () => parentContainer.removeEventListener('scroll', handleScroll);
+  }, [isInsideScrollContext, tableId]);
+
+  // Compute virtual slicing
+  const startIdx = isInsideScrollContext ? Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN) : 0;
+  const endIdx = isInsideScrollContext
+    ? Math.min(transactions.length - 1, Math.ceil((scrollTop + VIEWPORT_H) / ROW_H) + OVERSCAN)
+    : transactions.length - 1;
+
+  const visible = transactions.slice(startIdx, endIdx + 1);
+  const paddingTop = isInsideScrollContext ? startIdx * ROW_H : 0;
+  const paddingBottom = isInsideScrollContext ? Math.max(0, (transactions.length - endIdx - 1) * ROW_H) : 0;
+
+  const allSelected = transactions.length > 0 && selectedIds.size === transactions.length;
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map((t) => t.id)));
+    }
+  };
+
+  const applyBulkCategory = (categoryId: string) => {
+    for (const id of selectedIds) {
+      onUpdateCategory(id, categoryId);
+    }
+    setSelectedIds(new Set());
+    setBulkCategoryOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (!onDeleteTransactions) return;
+    onDeleteTransactions(selectedIds);
+    setSelectedIds(new Set());
+    setConfirmingDelete(false);
+  };
+
+  useEffect(() => {
+    if (!reviewTransactionId) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setReviewTransactionId(null);
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [reviewTransactionId]);
+
+  useEffect(() => {
+    function handleCategoryAutofocus(event: Event) {
+      const customEvent = event as CustomEvent<{ transactionId?: string }>;
+      const nextTransactionId = customEvent.detail?.transactionId;
+      if (nextTransactionId) {
+        setAutoFocusTransactionId(nextTransactionId);
+      }
+    }
+
+    document.addEventListener('category-autofocus', handleCategoryAutofocus as EventListener);
+    return () => {
+      document.removeEventListener('category-autofocus', handleCategoryAutofocus as EventListener);
+    };
+  }, []);
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ngày</th>
-              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Ghi nợ</th>
-              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Ghi có</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Mô tả</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Người chuyển</th>
-              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Số tiền</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[180px]">Miêu tả</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Conf.</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {transactions.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                  Không có giao dịch nào khớp bộ lọc hiện tại.
-                </td>
-              </tr>
+    <>
+      {someSelected && (
+        <div className="flex items-center gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2">
+          <span className="text-xs font-semibold text-indigo-700">
+            Đã chọn {selectedIds.size} giao dịch
+          </span>
+          <div className="relative">
+            <button
+              onClick={() => setBulkCategoryOpen((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-white px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <Search className="h-3 w-3" />
+              Gán danh mục
+            </button>
+            {bulkCategoryOpen && (
+              <BulkCategoryDropdown
+                categories={categories}
+                onSelect={applyBulkCategory}
+                onClose={() => setBulkCategoryOpen(false)}
+              />
+            )}
+          </div>
+          {onDeleteTransactions && (
+            confirmingDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-red-600 font-medium">Xác nhận xóa {selectedIds.size} giao dịch?</span>
+                <button
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  Xóa
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+              </div>
             ) : (
-              transactions.map((t) => {
-                return (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                Xóa
+              </button>
+            )
+          )}
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs text-indigo-500 hover:text-indigo-700"
+          >
+            Bỏ chọn tất cả
+          </button>
+        </div>
+      )}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div>
+          <table data-table-id={tableId} className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-10 px-3 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                    onChange={toggleAll}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Thời gian</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Số tiền</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nội dung</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Phân bổ</th>
+                <th className="w-[180px] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Danh mục</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Trạng thái</th>
+                <th className="w-10 px-3 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {paddingTop > 0 && <tr style={{ height: paddingTop }}><td colSpan={8} /></tr>}
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    Không có giao dịch nào khớp bộ lọc hiện tại.
+                  </td>
+                </tr>
+              ) : (
+                visible.map((t) => (
                   <tr
                     key={t.id}
+                    style={{ height: ROW_H }}
                     className={clsx(
-                      'hover:bg-gray-50 transition-colors'
+                      'transition-colors hover:bg-gray-50',
+                      selectedIds.has(t.id) && 'bg-indigo-50/50'
                     )}
                   >
-                    {/* Ngày */}
-                    <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap text-xs font-medium">
-                      {t.raw_date.split(' ')[0]}
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => toggleSelect(t.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
                     </td>
-
-                    {/* Ghi nợ */}
-                    <td className="px-3 py-2.5 text-right font-mono text-xs">
-                      {t.debit_amount > 0 ? (
-                        <span className="text-red-600">{formatAmount(t.debit_amount)}</span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500 align-middle">{t.raw_date}</td>
+                    <td className={clsx('whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs font-semibold align-middle', t.type === 'credit' ? 'text-green-600' : 'text-red-600')}>
+                      {t.type === 'credit' ? '+' : '-'}{formatAmount(t.normalized_amount)}
                     </td>
-
-                    {/* Ghi có */}
-                    <td className="px-3 py-2.5 text-right font-mono text-xs">
-                      {t.credit_amount > 0 ? (
-                        <span className="text-green-600">{formatAmount(t.credit_amount)}</span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-
-                    {/* Mô tả - full text */}
-                    <td className="px-3 py-2.5">
-                      <p className="text-xs text-gray-800" title={t.raw_desc || ''}>
+                    <td className="px-3 py-2.5 max-w-lg align-middle">
+                      <p className="text-xs text-gray-800 line-clamp-3" title={t.raw_desc || ''}>
                         {t.raw_desc}
                       </p>
+                      {t.sender_name && (
+                        <p className="mt-0.5 text-[10px] text-gray-400 truncate">{t.sender_name}</p>
+                      )}
                     </td>
-
-                    {/* Người chuyển */}
-                    <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap">
-                      {t.sender_name || <span className="text-gray-300">—</span>}
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <select
+                        value={t.split_mode}
+                        onChange={(e) =>
+                          onUpdateSplitMode(
+                            t.id,
+                            e.target.value as TransactionListItem['split_mode']
+                          )
+                        }
+                        className={clsx(
+                          'rounded-md border px-2 py-1 text-xs font-medium cursor-pointer',
+                          t.split_mode === 'direct' && 'border-gray-200 bg-gray-50 text-gray-600',
+                          t.split_mode === 'horizontal' && 'border-blue-200 bg-blue-50 text-blue-700',
+                          t.split_mode === 'vertical' && 'border-amber-200 bg-amber-50 text-amber-700',
+                        )}
+                      >
+                        <option value="direct">Trực tiếp</option>
+                        <option value="horizontal">Ngang</option>
+                        <option value="vertical">Dọc</option>
+                      </select>
+                      {t.allocations.length > 1 && (
+                        <span className="block mt-0.5 text-[10px] text-gray-400">{t.allocations.length} phân bổ</span>
+                      )}
                     </td>
-
-                    {/* Số tiền */}
-                    <td className={clsx('px-3 py-2.5 text-right font-semibold text-xs font-mono', t.type === 'credit' ? 'text-green-600' : 'text-red-600')}>
-                      {t.type === 'debit' ? '-' : '+'}{formatAmount(t.normalized_amount)}
-                    </td>
-
-                    {/* Miêu tả (was Gợi ý ĐM) - inline searchable combobox */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 align-middle">
                       <InlineCategorySearch
                         currentName={t.match?.suggested_category_name || null}
                         currentCode={t.match?.suggested_category_code || null}
                         categories={categories}
                         onSelect={(catId) => onUpdateCategory(t.id, catId)}
+                        transactionId={t.id}
+                        shouldAutoActivate={autoFocusTransactionId === t.id}
+                        onAutoActivated={() => {
+                          if (autoFocusTransactionId === t.id) {
+                            setAutoFocusTransactionId(null);
+                          }
+                        }}
                       />
+                      {t.match && t.match.confidence_score > 0 && (
+                        <ConfidenceBadge score={t.match.confidence_score} />
+                      )}
                     </td>
-
-                    {/* Confidence */}
-                    <td className="px-3 py-2.5 text-center">
-                      {t.match ? <ConfidenceBadge score={t.match.confidence_score} /> : <span className="text-gray-300">—</span>}
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <StatusBadge status={t.status} />
+                        {onConfirmTransaction && t.split_mode === 'direct' && t.status === 'classified' && (
+                          <button
+                            type="button"
+                            onClick={() => onConfirmTransaction(t.id)}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-green-300 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 transition-colors"
+                            title="Xác nhận giao dịch"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
-
-                    {/* Trạng thái */}
-                    <td className="px-3 py-2.5 text-center">
-                      <StatusBadge status={t.status} />
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => setReviewTransactionId(t.id)}
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        title="Xem chi tiết"
+                      >
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
                     </td>
-
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              )}
+              {paddingBottom > 0 && <tr style={{ height: paddingBottom }}><td colSpan={8} /></tr>}
+            </tbody>
+          </table>
+          {isInsideScrollContext && transactions.length > 0 && (
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-4 py-1.5 text-xs text-gray-400">
+              {transactions.length} giao dịch
+              {transactions.length > OVERSCAN && ` · hiển thị ${visible.length} trong viewport (cuộn để xem thêm)`}
+            </div>
+          )}
+        </div>
+
+        {pagination.total_pages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="text-xs text-gray-500">
+              Hiển thị {(pagination.page - 1) * pagination.page_size + 1}-
+              {Math.min(pagination.page * pagination.page_size, pagination.total_items)} / {pagination.total_items} giao dịch
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onGoToPage(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className="rounded border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Trước
+              </button>
+              {Array.from({ length: pagination.total_pages }, (_, i) => i + 1)
+                .filter((p) => {
+                  if (pagination.total_pages <= 7) return true;
+                  if (p === 1 || p === pagination.total_pages) return true;
+                  return Math.abs(p - pagination.page) <= 1;
+                })
+                .map((p, idx, arr) => {
+                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                  return (
+                    <span key={p}>
+                      {showEllipsis && <span className="px-1 text-xs text-gray-400">...</span>}
+                      <button
+                        onClick={() => onGoToPage(p)}
+                        className={clsx(
+                          'rounded border px-2.5 py-1 text-xs font-medium',
+                          p === pagination.page ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        )}
+                      >
+                        {p}
+                      </button>
+                    </span>
+                  );
+                })}
+              <button
+                onClick={() => onGoToPage(pagination.page + 1)}
+                disabled={pagination.page >= pagination.total_pages}
+                className="rounded border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pagination.total_pages <= 1 && pagination.total_items > 0 && (
+          <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="text-xs text-gray-500">Tổng cộng {pagination.total_items} giao dịch</p>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {pagination.total_pages > 1 && (
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-          <p className="text-xs text-gray-500">
-            Hiển thị {(pagination.page - 1) * pagination.page_size + 1}–
-            {Math.min(pagination.page * pagination.page_size, pagination.total_items)} / {pagination.total_items} giao dịch
-          </p>
-          <div className="flex items-center gap-1">
+      {reviewTransactionId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8"
+          onClick={() => setReviewTransactionId(null)}
+        >
+          <div
+            className="relative w-full max-w-5xl rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
-              onClick={() => onGoToPage(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-              className="px-2.5 py-1 text-xs font-medium rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              type="button"
+              onClick={() => setReviewTransactionId(null)}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50"
+              aria-label="Dong popup"
             >
-              ← Trước
+              <X className="h-4 w-4" />
             </button>
-            {Array.from({ length: pagination.total_pages }, (_, i) => i + 1)
-              .filter((p) => {
-                if (pagination.total_pages <= 7) return true;
-                if (p === 1 || p === pagination.total_pages) return true;
-                return Math.abs(p - pagination.page) <= 1;
-              })
-              .map((p, idx, arr) => {
-                const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
-                return (
-                  <span key={p}>
-                    {showEllipsis && <span className="px-1 text-gray-400 text-xs">…</span>}
-                    <button
-                      onClick={() => onGoToPage(p)}
-                      className={clsx(
-                        'px-2.5 py-1 text-xs font-medium rounded border',
-                        p === pagination.page
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      )}
-                    >
-                      {p}
-                    </button>
-                  </span>
-                );
-              })}
-            <button
-              onClick={() => onGoToPage(pagination.page + 1)}
-              disabled={pagination.page >= pagination.total_pages}
-              className="px-2.5 py-1 text-xs font-medium rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Sau →
-            </button>
+            <TransactionDetailView
+              transactionId={reviewTransactionId}
+              variant="modal"
+              onClose={() => setReviewTransactionId(null)}
+            />
           </div>
         </div>
       )}
-
-      {/* Footer summary for single page */}
-      {pagination.total_pages <= 1 && pagination.total_items > 0 && (
-        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-          <p className="text-xs text-gray-500">
-            Tổng cộng {pagination.total_items} giao dịch
-          </p>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

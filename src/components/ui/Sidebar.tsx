@@ -8,6 +8,7 @@ import {
   BookOpen,
   Download,
   FolderTree,
+  GraduationCap,
 } from 'lucide-react';
 
 interface NavItem {
@@ -24,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Quy tắc', href: '/rules', icon: <BookOpen size={18} /> },
   { label: 'Danh mục', href: '/categories', icon: <FolderTree size={18} /> },
   { label: 'Xuất báo cáo', href: '/exports', icon: <Download size={18} /> },
+  { label: 'Tổng hợp học phí', href: '/tuition', icon: <GraduationCap size={18} /> },
 ];
 
 export function Sidebar() {

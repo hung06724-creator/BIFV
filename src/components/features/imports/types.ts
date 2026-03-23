@@ -55,6 +55,12 @@ export interface ClassifyResult {
     low_confidence: number;
     already_confirmed: number;
   };
+  split_summary: {
+    direct: number;
+    horizontal: number;
+    vertical: number;
+    review_required: number;
+  };
   top_categories: {
     category_id: string;
     category_code: string;
