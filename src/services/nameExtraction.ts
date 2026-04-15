@@ -1,4 +1,4 @@
-import Groq from 'groq-sdk';
+import { loadGroq } from '@/lib/lazyVendors';
 
 // ─── Preprocessing ───────────────────────────────────────────────────────────
 
@@ -31,9 +31,28 @@ interface NameResult {
   fullName: string;
 }
 
-const MODELS = [
-  'llama-3.1-8b-instant',
-  'llama3-8b-8192',
+interface GroqModelConfig {
+  id: string;
+  contextWindow: number;
+  description: string;
+}
+
+const MODELS: GroqModelConfig[] = [
+  {
+    id: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    contextWindow: 8192,
+    description: 'Standard model with good balance',
+  },
+  {
+    id: 'llama-3.1-8b-instant',
+    contextWindow: 8000,
+    description: 'Fast and efficient for quick processing',
+  },
+  {
+    id: 'llama-3.3-70b-versatile',
+    contextWindow: 8192,
+    description: 'Standard model with good balance',
+  },
 ];
 
 const SYSTEM_PROMPT = `You are a bank employee who is determining the full name of the transferor based on the message in the transaction. If the name cannot be found it will be recorded as NULL
@@ -66,10 +85,11 @@ export async function extractNamesWithAI(
   for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
     const batch = prepared.slice(i, i + BATCH_SIZE);
     const modelIdx = Math.floor(i / BATCH_SIZE) % MODELS.length;
+    const modelConfig = MODELS[modelIdx];
 
     let batchResults: NameResult[];
     try {
-      batchResults = await callGroq(batch, apiKey, MODELS[modelIdx]);
+      batchResults = await callGroq(batch, apiKey, modelConfig.id);
     } catch {
       batchResults = batch.map((b) => ({ id: b.id, fullName: 'ERROR' }));
     }
@@ -90,6 +110,7 @@ async function callGroq(
   apiKey: string,
   model: string,
 ): Promise<NameResult[]> {
+  const Groq = await loadGroq();
   const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
 
   const result = await groq.chat.completions.create({

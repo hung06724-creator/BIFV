@@ -1,15 +1,15 @@
-import { Link, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  LayoutDashboard,
-  Upload,
-  List,
-  History,
   BookOpen,
   Download,
   FolderTree,
   GraduationCap,
+  History,
+  LayoutDashboard,
+  List,
+  Upload,
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 interface NavItem {
   label: string;
@@ -28,51 +28,81 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Tổng hợp học phí', href: '/tuition', icon: <GraduationCap size={18} /> },
 ];
 
+function isItemActive(pathname: string, href: string) {
+  return href === '/' ? pathname === '/' : pathname.startsWith(href);
+}
+
 export function Sidebar() {
   const { pathname } = useLocation();
 
   return (
-    <aside className="w-60 h-screen bg-[var(--brand-primary)] text-gray-100 flex flex-col fixed left-0 top-0">
-      <div className="px-4 py-4 border-b border-[var(--brand-border)]">
-        <div className="flex items-center gap-3 mb-2">
+    <aside
+      className="fixed left-0 top-0 flex h-screen w-60 flex-col text-white"
+      style={{
+        background: 'linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-hover) 100%)',
+      }}
+    >
+      <div className="border-b px-4 py-5" style={{ borderColor: 'rgba(217, 226, 220, 0.16)' }}>
+        <div className="flex flex-col gap-3">
           <img
             src="/group-4.png"
             alt="HNIVC"
-            className="h-10 w-auto rounded"
+            className="h-10 w-auto max-w-[120px] rounded-xl bg-white p-1 shadow-[0_6px_18px_rgba(0,0,0,0.18)]"
           />
-          <span className="text-base font-bold">HNIVC</span>
+          <div className="min-w-0">
+            <div className="text-[1.65rem] font-bold leading-8 text-white">Tra soát Sổ phụ</div>
+            <p className="mt-1 text-[1.05rem] font-medium leading-6" style={{ color: '#dce8e3' }}>
+              Hệ thống nội bộ
+            </p>
+          </div>
         </div>
-        <h1 className="text-sm font-bold leading-tight">Tra soát Sổ phụ</h1>
-        <p className="text-[10px] text-gray-300 mt-0.5">Hệ thống nội bộ</p>
       </div>
 
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-2.5 py-4">
         {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.href);
+          const isActive = isItemActive(pathname, item.href);
 
           return (
             <Link
               key={item.href}
               to={item.href}
               className={clsx(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                'group flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all duration-200',
                 isActive
-                  ? 'bg-[var(--brand-primary-dark)] text-white'
-                  : 'text-gray-300 hover:bg-[var(--brand-primary-light)] hover:text-white'
+                  ? 'font-semibold text-white shadow-[0_10px_30px_rgba(22,50,45,0.28)]'
+                  : 'hover:bg-white/[0.05] hover:text-white'
               )}
+              style={
+                isActive
+                  ? {
+                      background: 'linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%)',
+                    }
+                  : {
+                      color: '#e2ece8',
+                    }
+              }
             >
-              {item.icon}
-              {item.label}
+              <span
+                className={clsx(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors',
+                  isActive
+                    ? 'bg-transparent text-white'
+                    : 'group-hover:bg-white/[0.06] group-hover:text-white'
+                )}
+                style={isActive ? undefined : { color: '#dce8e3' }}
+              >
+                {item.icon}
+              </span>
+              <span className="truncate text-[15px]">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-[var(--brand-border)] px-4 py-3">
-        <p className="text-xs text-gray-300">HNIVC © 2025</p>
+      <div className="border-t px-4 py-4" style={{ borderColor: 'rgba(217, 226, 220, 0.16)' }}>
+        <p className="text-xs font-medium uppercase tracking-[0.14em]" style={{ color: '#9eb5ad' }}>
+          HNIVC © 2025
+        </p>
       </div>
     </aside>
   );

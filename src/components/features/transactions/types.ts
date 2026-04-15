@@ -54,6 +54,7 @@ export interface TransactionListItem {
   sender_name: string | null;
   allocations: TransactionAllocationView[];
   match: TransactionMatchView | null;
+  invoice_issued?: boolean | null;
   notes?: string | null;
 }
 

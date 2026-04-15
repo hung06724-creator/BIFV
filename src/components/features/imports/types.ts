@@ -4,7 +4,7 @@ export type ImportStep = 'upload' | 'preview' | 'parsing' | 'classifying' | 'don
 
 export const BANK_OPTIONS = [
   { value: 'BIDV', label: 'BIDV' },
-  { value: 'AGRIBANK', label: 'Agribank' },
+  { value: 'AGRIBANK', label: 'AGRIBANK' },
 ] as const;
 
 export type BankCode = (typeof BANK_OPTIONS)[number]['value'];

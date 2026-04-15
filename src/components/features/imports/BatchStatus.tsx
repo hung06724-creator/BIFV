@@ -104,7 +104,7 @@ export function ParseStatus({ result, onClassify, loading }: ParseStatusProps) {
         <button
           onClick={onClassify}
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+          className="btn btn-md btn-primary disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -167,7 +167,7 @@ export function ClassifyStatus({ result, batchId, onFinish }: ClassifyStatusProp
                       <span className="text-sm font-medium text-gray-800">{cat.category_name}</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-gray-100">
-                      <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 rounded-full bg-[var(--primary)] transition-all" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                   <div className="flex-shrink-0 text-right">
@@ -198,7 +198,7 @@ export function ClassifyStatus({ result, batchId, onFinish }: ClassifyStatusProp
         <Link
           to={`/transactions?batch=${batchId}`}
           onClick={onFinish}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          className="btn btn-md btn-primary"
         >
           Đến trang Kiểm tra
           <ArrowRight className="h-4 w-4" />

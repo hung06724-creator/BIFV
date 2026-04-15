@@ -206,6 +206,19 @@ export class AllocationService {
         return allocation;
       }
 
+      if (!category) {
+        return {
+          ...allocation,
+          suggested_category_id: null,
+          suggested_category_code: null,
+          suggested_category_name: null,
+          confirmed_category_id: null,
+          confirmed_category_code: null,
+          confirmed_category_name: null,
+          status: 'draft',
+        };
+      }
+
       return {
         ...allocation,
         suggested_category_id: category?.id || allocation.suggested_category_id,
@@ -225,14 +238,10 @@ export class AllocationService {
     confirm = false,
     targetAllocationNo?: number
   ): TransactionListItem {
-    if (!category) {
-      return transaction;
-    }
-
     const shouldForceHorizontal =
-      this.isHorizontalTriggerCategory(category) && transaction.split_mode !== 'horizontal';
+      Boolean(category) && this.isHorizontalTriggerCategory(category) && transaction.split_mode !== 'horizontal';
 
-    if (shouldForceHorizontal) {
+    if (shouldForceHorizontal && category) {
       const allocations = this.createHorizontalReviewAllocations(transaction, category);
       return {
         ...transaction,

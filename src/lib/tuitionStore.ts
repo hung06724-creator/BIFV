@@ -40,6 +40,7 @@ interface TuitionStore {
   removeAllSaved: () => void;
   getByStatus: (status: ExtractionStatus) => TuitionRecord[];
   syncFromStorage: (records: TuitionRecord[], savedRecords: TuitionRecord[]) => void;
+  syncSavedFromStorage: (savedRecords: TuitionRecord[]) => void;
 }
 
 const SAVED_KEY = 'tuition_saved_records';
@@ -241,5 +242,19 @@ export const useTuitionStore = create<TuitionStore>((set, get) => ({
 
   syncFromStorage: (records, savedRecords) => {
     set({ records, savedRecords });
+  },
+
+  syncSavedFromStorage: (savedRecords) => {
+    const savedKeys = new Set(savedRecords.map((r) => r.rawReference ? `${r.rawReference}|${r.amount}` : r.transactionId));
+    const savedIds = new Set(savedRecords.map((r) => r.transactionId));
+
+    set((state) => ({
+      savedRecords,
+      records: state.records.filter((r) => {
+        if (savedIds.has(r.transactionId)) return false;
+        const key = r.rawReference ? `${r.rawReference}|${r.amount}` : r.transactionId;
+        return !savedKeys.has(key);
+      }),
+    }));
   },
 }));

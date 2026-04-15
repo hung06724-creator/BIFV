@@ -71,7 +71,7 @@ export function ImportFlowView() {
                   <div
                     className={clsx(
                       'flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors',
-                      isActive && 'bg-indigo-600 border-indigo-600 text-white',
+                      isActive && 'bg-[var(--primary)] border-[var(--primary)] text-white',
                       isDone && 'bg-green-500 border-green-500 text-white',
                       isFuture && 'bg-white border-gray-300 text-gray-400'
                     )}
@@ -85,7 +85,7 @@ export function ImportFlowView() {
                   <span
                     className={clsx(
                       'text-xs font-medium hidden md:block',
-                      isActive && 'text-indigo-700',
+                      isActive && 'text-[var(--primary)]',
                       isDone && 'text-green-700',
                       isFuture && 'text-gray-400'
                     )}
@@ -115,7 +115,7 @@ export function ImportFlowView() {
           <div>
             <button
               onClick={reset}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+              className="btn btn-sm btn-ghost"
             >
               <ArrowLeft className="w-4 h-4" />
               Quay lại chọn file
@@ -154,7 +154,7 @@ export function ImportFlowView() {
           </p>
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors"
+            className="btn btn-md btn-secondary"
           >
             <RotateCcw className="w-4 h-4" />
             Nhập file mới
@@ -169,7 +169,7 @@ export function ImportFlowView() {
           {error}
           <button
             onClick={() => setError(null)}
-            className="ml-auto text-xs text-red-500 hover:text-red-700 underline"
+            className="btn btn-sm btn-ghost ml-auto text-[var(--danger)]"
           >
             Đóng
           </button>

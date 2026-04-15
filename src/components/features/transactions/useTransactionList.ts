@@ -203,12 +203,12 @@ export function useTransactionList() {
   }, [selectedIds, clearSelection, mapTxns]);
 
   const updateCategory = useCallback(
-    (transactionId: string, categoryId: string) => {
-      const category = categories.find((c) => c.id === categoryId);
+    (transactionId: string, categoryId: string | null) => {
+      const category = categoryId ? categories.find((c) => c.id === categoryId) : undefined;
       mapTxns((t) => {
         if (t.id !== transactionId) return t;
         // Direct + pending: user manually picks category → auto confirm
-        const autoConfirm = t.split_mode === 'direct' && t.status === 'pending_classification';
+        const autoConfirm = Boolean(category) && t.split_mode === 'direct' && t.status === 'pending_classification';
         return allocationService.applyTransactionCategorySelection(t, category, autoConfirm);
       });
     },
@@ -236,6 +236,19 @@ export function useTransactionList() {
       mapTxns((t) => {
         if (t.id !== transactionId) return t;
         return allocationService.applySplitModeSelection(t, splitMode);
+      });
+    },
+    [mapTxns]
+  );
+
+  const toggleInvoiceIssued = useCallback(
+    (transactionId: string, invoiceIssued: boolean) => {
+      mapTxns((t) => {
+        if (t.id !== transactionId) return t;
+        return {
+          ...t,
+          invoice_issued: invoiceIssued,
+        };
       });
     },
     [mapTxns]
@@ -315,6 +328,7 @@ export function useTransactionList() {
     updateCategory,
     confirmTransaction,
     updateSplitMode,
+    toggleInvoiceIssued,
     bulkAssignCategory,
     bulkConfirm,
     reclassify,

@@ -18,6 +18,16 @@ const VALID_TYPES = [
   'text/csv',
 ];
 
+function getBankButtonClass(activeBank: BankCode, buttonBank: BankCode) {
+  if (activeBank !== buttonBank) {
+    return 'bg-white text-gray-700 border-gray-200 hover:bg-[var(--btn-neutral-hover)]';
+  }
+
+  return buttonBank === 'AGRIBANK'
+    ? 'bg-[var(--agribank)] text-white border-[var(--agribank)]'
+    : 'bg-[var(--primary)] text-white border-[var(--primary)]';
+}
+
 export function UploadDropzone({
   bankCode,
   onBankCodeChange,
@@ -78,9 +88,7 @@ export function UploadDropzone({
               onClick={() => onBankCodeChange(opt.value)}
               className={clsx(
                 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors',
-                bankCode === opt.value
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                getBankButtonClass(bankCode, opt.value)
               )}
             >
               {opt.label}
@@ -94,8 +102,8 @@ export function UploadDropzone({
         className={clsx(
           'relative border-2 border-dashed rounded-xl p-12 text-center transition-colors',
           dragActive
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-indigo-400 bg-gray-50',
+            ? 'border-[var(--primary)] bg-[var(--primary-light)]'
+            : 'border-gray-300 hover:border-[var(--primary)] bg-gray-50',
           displayError && 'border-red-400 bg-red-50'
         )}
         onDragEnter={handleDrag}
@@ -105,10 +113,10 @@ export function UploadDropzone({
       >
         <div className="flex flex-col items-center justify-center space-y-3">
           <UploadCloud
-            className={clsx('h-12 w-12', dragActive ? 'text-indigo-600' : 'text-gray-400')}
+            className={clsx('h-12 w-12', dragActive ? 'text-[var(--primary)]' : 'text-gray-400')}
           />
           <div className="text-sm text-gray-600">
-            <span className="font-semibold text-indigo-600 hover:underline cursor-pointer">
+            <span className="font-semibold text-[var(--primary)] hover:underline cursor-pointer">
               Bấm để chọn file
             </span>{' '}
             hoặc kéo thả vào đây
@@ -146,7 +154,7 @@ export function UploadDropzone({
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="ml-4 flex-shrink-0 bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="btn btn-md btn-primary ml-4 flex-shrink-0 disabled:opacity-50"
           >
             {loading ? (
               <>

@@ -1,0 +1,151 @@
+<svg width="1440" height="920" viewBox="0 0 1440 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="920" fill="#F6F5F1"/>
+
+  <text x="72" y="86" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">
+    Preview bang mau xanh reu
+  </text>
+  <text x="72" y="122" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="18">
+    Mo phong sidebar, the thong ke va trang noi dung truoc khi ap vao UI
+  </text>
+
+  <g transform="translate(68 170)">
+    <rect width="290" height="660" rx="30" fill="url(#sidebarGradient)"/>
+    <rect x="26" y="28" width="118" height="40" rx="14" fill="#FFFFFF18"/>
+    <text x="44" y="54" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+      HNIVC
+    </text>
+
+    <rect x="20" y="116" width="250" height="58" rx="18" fill="url(#activeGradient)"/>
+    <circle cx="50" cy="145" r="13" fill="#FFFFFF" fill-opacity="0.16"/>
+    <text x="74" y="150" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="600">
+      Tong quan
+    </text>
+
+    <rect x="20" y="188" width="250" height="58" rx="18" fill="#21453E"/>
+    <circle cx="50" cy="217" r="13" fill="#FFFFFF" fill-opacity="0.12"/>
+    <text x="74" y="222" fill="#E8F2EE" font-family="Segoe UI, Arial, sans-serif" font-size="17">
+      Nhap so phu
+    </text>
+
+    <rect x="20" y="260" width="250" height="58" rx="18" fill="#21453E"/>
+    <circle cx="50" cy="289" r="13" fill="#FFFFFF" fill-opacity="0.12"/>
+    <text x="74" y="294" fill="#E8F2EE" font-family="Segoe UI, Arial, sans-serif" font-size="17">
+      Giao dich
+    </text>
+
+    <rect x="20" y="332" width="250" height="58" rx="18" fill="#21453E"/>
+    <circle cx="50" cy="361" r="13" fill="#FFFFFF" fill-opacity="0.12"/>
+    <text x="74" y="366" fill="#E8F2EE" font-family="Segoe UI, Arial, sans-serif" font-size="17">
+      Lich su GD
+    </text>
+
+    <rect x="20" y="404" width="250" height="58" rx="18" fill="#21453E"/>
+    <circle cx="50" cy="433" r="13" fill="#FFFFFF" fill-opacity="0.12"/>
+    <text x="74" y="438" fill="#E8F2EE" font-family="Segoe UI, Arial, sans-serif" font-size="17">
+      Xuat bao cao
+    </text>
+
+    <text x="30" y="624" fill="#BBD0C9" font-family="Segoe UI, Arial, sans-serif" font-size="13" letter-spacing="1.4">
+      SIDEBAR
+    </text>
+    <text x="30" y="652" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+      Sau, am, on dinh
+    </text>
+  </g>
+
+  <g transform="translate(402 170)">
+    <rect width="970" height="660" rx="34" fill="#FBFAF7" stroke="#D9E2DC"/>
+
+    <rect x="36" y="34" width="898" height="104" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="66" y="72" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">
+      Tra soat So phu
+    </text>
+    <text x="66" y="102" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="16">
+      Tong the giao dien voi nen kem nhat, the trang va xanh reu lam mau chu dao
+    </text>
+    <rect x="804" y="56" width="98" height="40" rx="14" fill="#EDF5F2"/>
+    <text x="833" y="82" fill="#2F6B5F" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+      Bo loc
+    </text>
+
+    <rect x="36" y="164" width="270" height="182" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="60" y="206" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+      Tong giao dich
+    </text>
+    <text x="60" y="258" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">
+      12,480
+    </text>
+    <rect x="60" y="286" width="118" height="34" rx="14" fill="#EDF5F2"/>
+    <text x="80" y="308" fill="#2F6B5F" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">
+      +8.4% thang
+    </text>
+
+    <rect x="332" y="164" width="270" height="182" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="356" y="206" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+      Canh bao
+    </text>
+    <text x="356" y="258" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">
+      23
+    </text>
+    <rect x="356" y="286" width="116" height="34" rx="14" fill="#FBF2E2"/>
+    <text x="383" y="308" fill="#C98A2E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">
+      Can xu ly
+    </text>
+
+    <rect x="628" y="164" width="270" height="182" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="652" y="206" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+      Loi doi soat
+    </text>
+    <text x="652" y="258" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">
+      5
+    </text>
+    <rect x="652" y="286" width="108" height="34" rx="14" fill="#F8EAEA"/>
+    <text x="683" y="308" fill="#B84747" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">
+      Uu tien
+    </text>
+
+    <rect x="36" y="380" width="862" height="238" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="60" y="422" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+      Mau ung dung thuc te
+    </text>
+    <text x="60" y="452" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+      Tieu de dung mau toi, thanh trang thai dung green nhat, canh bao giu am thay vi choi
+    </text>
+
+    <rect x="60" y="486" width="778" height="54" rx="16" fill="#F8FAF9" stroke="#D9E2DC"/>
+    <circle cx="88" cy="513" r="8" fill="#2F855A"/>
+    <text x="108" y="518" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+      File BIDV T1 2026.xlsx da duoc xu ly thanh cong
+    </text>
+
+    <rect x="60" y="554" width="778" height="54" rx="16" fill="#F9F6EE" stroke="#E8D7B5"/>
+    <circle cx="88" cy="581" r="8" fill="#C98A2E"/>
+    <text x="108" y="586" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+      Con 23 dong can doi chieu thu cong truoc khi xuat bao cao
+    </text>
+  </g>
+
+  <g transform="translate(1080 74)">
+    <rect width="290" height="66" rx="22" fill="#FFFFFF" stroke="#D9E2DC"/>
+    <text x="22" y="28" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+      Bang mau
+    </text>
+    <rect x="22" y="38" width="28" height="28" rx="10" fill="#2F6B5F"/>
+    <rect x="58" y="38" width="28" height="28" rx="10" fill="#28584F"/>
+    <rect x="94" y="38" width="28" height="28" rx="10" fill="#EDF5F2" stroke="#D9E2DC"/>
+    <rect x="130" y="38" width="28" height="28" rx="10" fill="#C98A2E"/>
+    <rect x="166" y="38" width="28" height="28" rx="10" fill="#B84747"/>
+    <rect x="202" y="38" width="28" height="28" rx="10" fill="#16322D"/>
+  </g>
+
+  <defs>
+    <linearGradient id="sidebarGradient" x1="145" y1="0" x2="145" y2="660" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16322D"/>
+      <stop offset="1" stop-color="#21453E"/>
+    </linearGradient>
+    <linearGradient id="activeGradient" x1="145" y1="116" x2="145" y2="174" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F6B5F"/>
+      <stop offset="1" stop-color="#28584F"/>
+    </linearGradient>
+  </defs>
+</svg>

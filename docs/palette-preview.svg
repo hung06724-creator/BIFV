@@ -1,0 +1,129 @@
+<svg width="1440" height="980" viewBox="0 0 1440 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="980" fill="#F3F6FB"/>
+
+  <text x="80" y="90" fill="#14233B" font-family="Segoe UI, Arial, sans-serif" font-size="36" font-weight="700">
+    Preview de xuat bang mau
+  </text>
+  <text x="80" y="128" fill="#5B6B84" font-family="Segoe UI, Arial, sans-serif" font-size="18">
+    So sanh 3 huong mau cho he thong "Tra soat So phu"
+  </text>
+
+  <g transform="translate(70 180)">
+    <rect width="400" height="700" rx="28" fill="#FFFFFF"/>
+    <rect x="0" y="0" width="400" height="700" rx="28" fill="#FFFFFF" stroke="#D9E2F0"/>
+    <rect x="28" y="28" width="108" height="644" rx="22" fill="url(#sidebarA)"/>
+    <rect x="156" y="44" width="216" height="68" rx="20" fill="#F6F9FE" stroke="#D7E2F3"/>
+    <text x="174" y="72" fill="#163A70" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Phuong an 1</text>
+    <text x="174" y="96" fill="#5F6F88" font-family="Segoe UI, Arial, sans-serif" font-size="14">Cong vu trang trong</text>
+
+    <rect x="42" y="128" width="80" height="44" rx="14" fill="url(#activeA)"/>
+    <rect x="42" y="188" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+    <rect x="42" y="248" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+    <rect x="42" y="308" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+
+    <rect x="156" y="138" width="216" height="120" rx="22" fill="#EAF1FB"/>
+    <text x="176" y="176" fill="#163A70" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Navy + Royal</text>
+    <text x="176" y="206" fill="#47607F" font-family="Segoe UI, Arial, sans-serif" font-size="15">Sach, nghiem tuc, de dung lau</text>
+    <rect x="176" y="222" width="70" height="12" rx="6" fill="#D8A73C"/>
+
+    <text x="156" y="306" fill="#6A7A91" font-family="Segoe UI, Arial, sans-serif" font-size="14">Swatches</text>
+    <rect x="156" y="322" width="48" height="48" rx="14" fill="#163A70"/>
+    <rect x="216" y="322" width="48" height="48" rx="14" fill="#2457A6"/>
+    <rect x="276" y="322" width="48" height="48" rx="14" fill="#EAF1FB" stroke="#D7E2F3"/>
+    <rect x="156" y="382" width="48" height="48" rx="14" fill="#D8A73C"/>
+    <rect x="216" y="382" width="48" height="48" rx="14" fill="#B83232"/>
+
+    <text x="156" y="462" fill="#163A70" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Cam giac</text>
+    <text x="156" y="492" fill="#52627B" font-family="Segoe UI, Arial, sans-serif" font-size="15">On dinh, tin cay, dung chat</text>
+    <text x="156" y="516" fill="#52627B" font-family="Segoe UI, Arial, sans-serif" font-size="15">he thong noi bo nghiep vu</text>
+  </g>
+
+  <g transform="translate(520 180)">
+    <rect width="400" height="700" rx="28" fill="#FFFFFF"/>
+    <rect x="0" y="0" width="400" height="700" rx="28" fill="#FFFFFF" stroke="#E4D9C7"/>
+    <rect x="28" y="28" width="108" height="644" rx="22" fill="url(#sidebarB)"/>
+    <rect x="156" y="44" width="216" height="68" rx="20" fill="#FCF8EF" stroke="#ECDCB8"/>
+    <text x="174" y="72" fill="#1A3C7B" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Phuong an 2</text>
+    <text x="174" y="96" fill="#7A6952" font-family="Segoe UI, Arial, sans-serif" font-size="14">Bam logo hon</text>
+
+    <rect x="42" y="128" width="80" height="44" rx="14" fill="url(#activeB)"/>
+    <rect x="42" y="188" width="80" height="44" rx="14" fill="#FFFFFF18"/>
+    <rect x="42" y="248" width="80" height="44" rx="14" fill="#FFFFFF18"/>
+    <rect x="42" y="308" width="80" height="44" rx="14" fill="#FFFFFF18"/>
+
+    <rect x="156" y="138" width="216" height="120" rx="22" fill="#F8F4EA"/>
+    <text x="176" y="176" fill="#1A3C7B" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Blue + Gold</text>
+    <text x="176" y="206" fill="#73634D" font-family="Segoe UI, Arial, sans-serif" font-size="15">Nhan dien ro, am va co chat</text>
+    <rect x="176" y="222" width="70" height="12" rx="6" fill="#E0B44C"/>
+
+    <text x="156" y="306" fill="#8B785E" font-family="Segoe UI, Arial, sans-serif" font-size="14">Swatches</text>
+    <rect x="156" y="322" width="48" height="48" rx="14" fill="#1A3C7B"/>
+    <rect x="216" y="322" width="48" height="48" rx="14" fill="#2F5FB3"/>
+    <rect x="276" y="322" width="48" height="48" rx="14" fill="#F8F4EA" stroke="#ECDCB8"/>
+    <rect x="156" y="382" width="48" height="48" rx="14" fill="#E0B44C"/>
+    <rect x="216" y="382" width="48" height="48" rx="14" fill="#B62828"/>
+
+    <text x="156" y="462" fill="#1A3C7B" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Cam giac</text>
+    <text x="156" y="492" fill="#6C5E4B" font-family="Segoe UI, Arial, sans-serif" font-size="15">Gan thuong hieu, trang trong</text>
+    <text x="156" y="516" fill="#6C5E4B" font-family="Segoe UI, Arial, sans-serif" font-size="15">nhung dam hon hien tai</text>
+  </g>
+
+  <g transform="translate(970 180)">
+    <rect width="400" height="700" rx="28" fill="#FFFFFF"/>
+    <rect x="0" y="0" width="400" height="700" rx="28" fill="#FFFFFF" stroke="#D7DFE8"/>
+    <rect x="28" y="28" width="108" height="644" rx="22" fill="url(#sidebarC)"/>
+    <rect x="156" y="44" width="216" height="68" rx="20" fill="#F4F7FB" stroke="#D9E1EC"/>
+    <text x="174" y="72" fill="#1C2E4A" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Phuong an 3</text>
+    <text x="174" y="96" fill="#66758A" font-family="Segoe UI, Arial, sans-serif" font-size="14">Hien dai, mem hon</text>
+
+    <rect x="42" y="128" width="80" height="44" rx="14" fill="url(#activeC)"/>
+    <rect x="42" y="188" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+    <rect x="42" y="248" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+    <rect x="42" y="308" width="80" height="44" rx="14" fill="#FFFFFF14"/>
+
+    <rect x="156" y="138" width="216" height="120" rx="22" fill="#EDF4FB"/>
+    <text x="176" y="176" fill="#1C2E4A" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Ink + Steel</text>
+    <text x="176" y="206" fill="#596A81" font-family="Segoe UI, Arial, sans-serif" font-size="15">Nhe mat hon, van chuyen nghiep</text>
+    <rect x="176" y="222" width="70" height="12" rx="6" fill="#D6BE82"/>
+
+    <text x="156" y="306" fill="#677890" font-family="Segoe UI, Arial, sans-serif" font-size="14">Swatches</text>
+    <rect x="156" y="322" width="48" height="48" rx="14" fill="#1C2E4A"/>
+    <rect x="216" y="322" width="48" height="48" rx="14" fill="#3F6796"/>
+    <rect x="276" y="322" width="48" height="48" rx="14" fill="#EDF4FB" stroke="#D9E1EC"/>
+    <rect x="156" y="382" width="48" height="48" rx="14" fill="#D6BE82"/>
+    <rect x="216" y="382" width="48" height="48" rx="14" fill="#A94442"/>
+
+    <text x="156" y="462" fill="#1C2E4A" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Cam giac</text>
+    <text x="156" y="492" fill="#5B6B82" font-family="Segoe UI, Arial, sans-serif" font-size="15">Thoang hon, it gang mau</text>
+    <text x="156" y="516" fill="#5B6B82" font-family="Segoe UI, Arial, sans-serif" font-size="15">de mo rong sang UI moi</text>
+  </g>
+
+  <defs>
+    <linearGradient id="sidebarA" x1="82" y1="28" x2="82" y2="672" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F274D"/>
+      <stop offset="1" stop-color="#173869"/>
+    </linearGradient>
+    <linearGradient id="activeA" x1="82" y1="128" x2="82" y2="172" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2A5CAA"/>
+      <stop offset="1" stop-color="#346BC4"/>
+    </linearGradient>
+
+    <linearGradient id="sidebarB" x1="82" y1="28" x2="82" y2="672" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#122C59"/>
+      <stop offset="1" stop-color="#1A3C7B"/>
+    </linearGradient>
+    <linearGradient id="activeB" x1="82" y1="128" x2="82" y2="172" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F5FB3"/>
+      <stop offset="1" stop-color="#3D73CC"/>
+    </linearGradient>
+
+    <linearGradient id="sidebarC" x1="82" y1="28" x2="82" y2="672" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17263D"/>
+      <stop offset="1" stop-color="#22395C"/>
+    </linearGradient>
+    <linearGradient id="activeC" x1="82" y1="128" x2="82" y2="172" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#456FA3"/>
+      <stop offset="1" stop-color="#5B84B8"/>
+    </linearGradient>
+  </defs>
+</svg>

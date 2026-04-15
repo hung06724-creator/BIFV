@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import clsx from 'clsx';
-import { WeeklyReportView } from '@/components/features/reports/WeeklyReportView';
-import { LedgerReportView } from '@/components/features/reports/LedgerReportView';
+
+const WeeklyReportView = lazy(async () => {
+  const module = await import('@/components/features/reports/WeeklyReportView');
+  return { default: module.WeeklyReportView };
+});
+
+const LedgerReportView = lazy(async () => {
+  const module = await import('@/components/features/reports/LedgerReportView');
+  return { default: module.LedgerReportView };
+});
 const TABS = [
   { key: 'ledger', label: 'Báo cáo theo TK' },
   { key: 'weekly', label: 'Báo cáo theo tuần' },
@@ -20,10 +28,10 @@ export default function ExportsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={clsx(
-              'rounded-lg border px-5 py-2 text-sm font-medium transition-colors',
+              'btn btn-md',
               tab === t.key
-                ? 'border-indigo-600 bg-indigo-600 text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                ? 'btn-primary'
+                : 'btn-neutral'
             )}
           >
             {t.label}
@@ -31,8 +39,10 @@ export default function ExportsPage() {
         ))}
       </div>
 
-      {tab === 'ledger' && <LedgerReportView />}
-      {tab === 'weekly' && <WeeklyReportView />}
+      <Suspense fallback={<div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải báo cáo...</div>}>
+        {tab === 'ledger' && <LedgerReportView />}
+        {tab === 'weekly' && <WeeklyReportView />}
+      </Suspense>
     </div>
   );
 }

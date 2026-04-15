@@ -1,14 +1,33 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTuitionStore, TuitionRecord } from '@/lib/tuitionStore';
+import { useAppStore } from '@/lib/store';
 import { Download, RotateCcw, Search, ChevronDown, ChevronRight, Calendar, Trash2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { clsx } from 'clsx';
 import type { BankTab } from '@/lib/store';
+import { loadXLSX } from '@/lib/lazyVendors';
 
 const BANK_TABS: { key: BankTab; label: string }[] = [
   { key: 'BIDV', label: 'BIDV' },
-  { key: 'AGRIBANK', label: 'Agribank' },
+  { key: 'AGRIBANK', label: 'AGRIBANK' },
 ];
+
+function getBankButtonClass(activeBank: BankTab, buttonBank: BankTab) {
+  if (activeBank !== buttonBank) {
+    return 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
+  }
+
+  return buttonBank === 'AGRIBANK'
+    ? 'bg-[var(--agribank)] text-white border-[var(--agribank)]'
+    : 'bg-[var(--primary)] text-white border-[var(--primary)]';
+}
+
+function getBankCountBadgeClass(activeBank: BankTab, buttonBank: BankTab) {
+  if (activeBank !== buttonBank) {
+    return 'bg-gray-100 text-gray-500';
+  }
+
+  return buttonBank === 'AGRIBANK' ? 'bg-[var(--agribank-dark)] text-white' : 'bg-[var(--primary-dark)] text-white';
+}
 
 function formatNumber(value: number): string {
   return value.toLocaleString('vi-VN');
@@ -95,6 +114,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
           <col style={{ width: 44 }} />{/* STT */}
           <col style={{ width: 110 }} />{/* Thời gian */}
           <col style={{ width: 130 }} />{/* Số tiền */}
+          <col style={{ width: 130 }} />{/* Danh mục */}
           <col />{/* Nội dung – flexible */}
           <col style={{ width: 130 }} />{/* MHS */}
           <col style={{ width: 180 }} />{/* Họ và tên */}
@@ -107,6 +127,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
             <th className="text-center px-3 py-3 font-semibold text-green-800">STT</th>
             <th className="text-left px-3 py-3 font-semibold text-green-800 whitespace-nowrap">Thời gian</th>
             <th className="text-right px-3 py-3 font-semibold text-green-800 whitespace-nowrap">Số tiền</th>
+            <th className="text-left px-3 py-3 font-semibold text-green-800 whitespace-nowrap">Danh mục</th>
             <th className="text-left px-3 py-3 font-semibold text-green-800">Nội dung</th>
             <th className="text-left px-3 py-3 font-semibold text-green-800 whitespace-nowrap">MHS</th>
             <th className="text-left px-3 py-3 font-semibold text-green-800 whitespace-nowrap">Họ và tên</th>
@@ -117,7 +138,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {paddingTop > 0 && (
-            <tr style={{ height: paddingTop }}><td colSpan={9} /></tr>
+            <tr style={{ height: paddingTop }}><td colSpan={10} /></tr>
           )}
           {visibleRecords.map((rec, relIdx) => {
             const idx = startIdx + relIdx;
@@ -127,6 +148,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
                 <td className="text-center px-3 py-2.5 text-gray-500 font-mono text-xs">{idx + 1}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-gray-800 text-xs">{rec.date}</td>
                 <td className="text-right px-3 py-2.5 tabular-nums text-gray-900 font-medium">{formatNumber(rec.amount)}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs font-medium text-indigo-700">{rec.categoryCode}</td>
                 <td className="px-3 py-2.5 text-gray-700 text-xs truncate" title={rec.description}>{rec.description}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-gray-800 font-mono text-xs">{st?.maHoSo ?? ''}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap font-medium text-green-800 text-xs">{st?.hoTen ?? rec.extractedName}</td>
@@ -145,7 +167,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
             );
           })}
           {paddingBottom > 0 && (
-            <tr style={{ height: paddingBottom }}><td colSpan={9} /></tr>
+            <tr style={{ height: paddingBottom }}><td colSpan={10} /></tr>
           )}
         </tbody>
         <tfoot className="sticky bottom-0 bg-green-50 border-t-2 border-green-200">
@@ -154,7 +176,7 @@ function VirtualTable({ records, onReset }: VirtualTableProps) {
             <td className="text-right px-3 py-2 font-bold tabular-nums text-green-900" style={{ width: 120 }}>
               {formatNumber(records.reduce((s, r) => s + r.amount, 0))}
             </td>
-            <td colSpan={6} className="px-3 py-2 text-xs text-gray-500">
+            <td colSpan={7} className="px-3 py-2 text-xs text-gray-500">
               {records.length} giao dịch &nbsp;·&nbsp; Đang hiển thị {visibleRecords.length} trong viewport
               {records.length > 50 && ' (cuộn để xem thêm)'}
             </td>
@@ -170,10 +192,12 @@ export function HPSavedView() {
   const savedRecordsStore = useTuitionStore((s) => s.savedRecords);
   const resetRecord = useTuitionStore((s) => s.resetRecord);
   const removeAllSaved = useTuitionStore((s) => s.removeAllSaved);
+  const categories = useAppStore((s) => s.categories);
 
   const [search, setSearch] = useState('');
   const [activeBank, setActiveBank] = useState<BankTab>('BIDV');
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   // 1. Bank
@@ -204,23 +228,58 @@ export function HPSavedView() {
     [bankFiltered, selectedYear]
   );
 
-  // 4. Search filter
+  const availableCategories = useMemo(() => {
+    const categoryMap = new Map<string, string>();
+
+    for (const category of categories) {
+      if (category.code) {
+        categoryMap.set(category.code, category.name || category.code);
+      }
+    }
+
+    for (const record of bankFiltered) {
+      if (!categoryMap.has(record.categoryCode)) {
+        categoryMap.set(record.categoryCode, record.categoryCode);
+      }
+    }
+
+    return Array.from(categoryMap.entries())
+      .filter(([code]) => bankFiltered.some((record) => record.categoryCode === code))
+      .sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+      .map(([code, name]) => ({ code, name }));
+  }, [categories, bankFiltered]);
+
+  useEffect(() => {
+    if (selectedCategory === 'all') return;
+    if (!availableCategories.some((category) => category.code === selectedCategory)) {
+      setSelectedCategory('all');
+    }
+  }, [availableCategories, selectedCategory]);
+
+  // 4. Category filter
+  const categoryFiltered = useMemo(() => {
+    if (selectedCategory === 'all') return yearFiltered;
+    return yearFiltered.filter((r) => r.categoryCode === selectedCategory);
+  }, [yearFiltered, selectedCategory]);
+
+  // 5. Search filter
   const filtered = useMemo(() => {
-    if (!search.trim()) return yearFiltered;
+    if (!search.trim()) return categoryFiltered;
     const q = search.trim().toLowerCase();
-    return yearFiltered.filter(
+    return categoryFiltered.filter(
       (r) =>
+        r.categoryCode.toLowerCase().includes(q) ||
         r.description.toLowerCase().includes(q) ||
         r.extractedName.toLowerCase().includes(q) ||
         r.confirmedStudent?.hoTen.toLowerCase().includes(q) ||
         r.confirmedStudent?.maHoSo.toLowerCase().includes(q) ||
         r.confirmedStudent?.nganh?.toLowerCase().includes(q)
     );
-  }, [yearFiltered, search]);
+  }, [categoryFiltered, search]);
 
   const totalAmountFiltered = useMemo(() => filtered.reduce((s, r) => s + r.amount, 0), [filtered]);
 
-  // 5. Group by Month
+  // 6. Group by Month
   const months = useMemo(() => groupByMonth(filtered), [filtered]);
 
   const bankCounts = useMemo(() => {
@@ -239,14 +298,16 @@ export function HPSavedView() {
     });
   };
 
-  function handleDownload() {
-    const header = ['STT', 'Thời gian', 'Số tiền', 'Nội dung', 'MHS', 'Họ và tên', 'Ngày tháng năm sinh', 'Lớp'];
+  async function handleDownload() {
+    const XLSX = await loadXLSX();
+    const header = ['STT', 'Thời gian', 'Số tiền', 'Danh mục', 'Nội dung', 'MHS', 'Họ và tên', 'Ngày tháng năm sinh', 'Lớp'];
     const data: any[][] = filtered.map((r, i) => {
       const st = r.confirmedStudent;
       return [
         i + 1,
         r.date,
         r.amount,
+        r.categoryCode,
         r.description,
         st?.maHoSo ?? '',
         st?.hoTen ?? r.extractedName,
@@ -254,20 +315,20 @@ export function HPSavedView() {
         st?.nganh ?? '',
       ];
     });
-    data.push(['', 'TỔNG CỘNG', totalAmountFiltered, '', '', '', '', '']);
+    data.push(['', 'TỔNG CỘNG', totalAmountFiltered, '', '', '', '', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     ws['!cols'] = [
-      { wch: 5 }, { wch: 15 }, { wch: 18 }, { wch: 60 },
+      { wch: 5 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 60 },
       { wch: 14 }, { wch: 25 }, { wch: 16 }, { wch: 15 },
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Lưu trữ HP');
+    XLSX.utils.book_append_sheet(wb, ws, 'Lưu trữ GD');
 
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    XLSX.writeFile(wb, `Luu-tru-HP_${activeBank}_${selectedYear}_${dateStr}.xlsx`);
+    XLSX.writeFile(wb, `Luu-tru-giao-dich_${activeBank}_${selectedYear}_${dateStr}.xlsx`);
   }
 
   return (
@@ -281,15 +342,13 @@ export function HPSavedView() {
               onClick={() => { setActiveBank(tab.key); setExpandedMonths(new Set()); }}
               className={clsx(
                 'px-5 py-2 text-sm font-medium rounded-lg border transition-colors',
-                activeBank === tab.key
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                getBankButtonClass(activeBank, tab.key)
               )}
             >
               {tab.label}
               <span className={clsx(
                 'ml-2 px-1.5 py-0.5 text-xs rounded-full font-bold',
-                activeBank === tab.key ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'
+                getBankCountBadgeClass(activeBank, tab.key)
               )}>
                 {bankCounts[tab.key] || 0}
               </span>
@@ -342,14 +401,50 @@ export function HPSavedView() {
             ))}
           </div>
         )}
-        
-        <div className={clsx("flex items-center gap-2 flex-1 min-w-[250px]", availableYears.length > 0 && "border-l border-gray-200 pl-4")}>
+
+        {availableCategories.length > 0 && (
+          <div className={clsx("flex items-center gap-2 flex-wrap", availableYears.length > 0 && "border-l border-gray-200 pl-4")}>
+            <span className="text-xs font-medium text-gray-500">Danh mục:</span>
+            <button
+              onClick={() => { setSelectedCategory('all'); setExpandedMonths(new Set()); }}
+              className={clsx(
+                'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                selectedCategory === 'all'
+                  ? 'border-green-600 bg-green-600 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              Tất cả
+            </button>
+            {availableCategories.map((category) => (
+              <button
+                key={category.code}
+                onClick={() => { setSelectedCategory(category.code); setExpandedMonths(new Set()); }}
+                className={clsx(
+                  'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                  selectedCategory === category.code
+                    ? 'border-green-600 bg-green-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                )}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div
+          className={clsx(
+            'flex items-center gap-2 flex-1 min-w-[250px]',
+            (availableYears.length > 0 || availableCategories.length > 0) && 'border-l border-gray-200 pl-4'
+          )}
+        >
           <Search className="w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm theo tên, MHS, nội dung, lớp..."
+            placeholder="Tìm kiếm theo danh mục, tên, MHS, nội dung, lớp..."
             className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
@@ -363,7 +458,7 @@ export function HPSavedView() {
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
           <p className="text-gray-400 text-sm">
             {savedRecordsStore.length === 0
-              ? 'Chưa có giao dịch nào được lưu trữ. Hãy xác nhận giao dịch ở trang Tổng hợp học phí.'
+              ? 'Chưa có giao dịch nào được lưu trữ. Hãy xác nhận giao dịch ở tab Trích xuất giao dịch.'
               : 'Không tìm thấy kết quả phù hợp.'}
           </p>
         </div>

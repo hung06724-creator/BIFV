@@ -1,8 +1,11 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { TransactionDetailView } from '@/components/features/transactions/detail/TransactionDetailView';
 
 export default function TransactionDetailPage() {
   const { transactionId } = useParams<{ transactionId: string }>();
+  const [searchParams] = useSearchParams();
+  const shouldFocusClassification = searchParams.get('focus') === 'classification';
+  const bankCode = searchParams.get('bank');
 
   if (!transactionId) {
     return (
@@ -16,7 +19,11 @@ export default function TransactionDetailPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] p-6">
-      <TransactionDetailView transactionId={transactionId} />
+      <TransactionDetailView
+        transactionId={transactionId}
+        bankCode={bankCode === 'AGRIBANK' ? 'AGRIBANK' : bankCode === 'BIDV' ? 'BIDV' : undefined}
+        autoFocusClassification={shouldFocusClassification}
+      />
     </div>
   );
 }

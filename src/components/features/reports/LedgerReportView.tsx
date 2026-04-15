@@ -1,14 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { useAppStore } from '@/lib/store';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { useAppStore } from '@/lib/store';
 import type { BankTab } from '@/lib/store';
 import type { TransactionListItem } from '@/components/features/transactions/types';
+import { loadXLSX } from '@/lib/lazyVendors';
 
 type ViewMode = 'week' | 'month' | 'year';
 
-const WEEK_LABELS = ['Tuần 1 (1–8)', 'Tuần 2 (9–15)', 'Tuần 3 (16–22)', 'Tuần 4 (23–cuối)'];
+const WEEK_LABELS = ['Tuần 1 (1-8)', 'Tuần 2 (9-15)', 'Tuần 3 (16-22)', 'Tuần 4 (23-cuối)'];
 
 function getLastDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
@@ -40,18 +40,18 @@ interface LedgerGroup {
   total: number;
 }
 
+const BANK_BUTTONS: { key: BankTab; label: string }[] = [
+  { key: 'BIDV', label: 'BIDV' },
+  { key: 'AGRIBANK', label: 'AGRIBANK' },
+];
+
 function buildColumnLabels(mode: ViewMode, month: number, year: number): string[] {
   if (mode === 'week') return WEEK_LABELS;
   if (mode === 'month') return Array.from({ length: 12 }, (_, i) => `Tháng ${i + 1}`);
   return [String(year)];
 }
 
-function getColumnIndex(
-  mode: ViewMode,
-  txn: TransactionListItem,
-  selectedMonth: number,
-  selectedYear: number,
-): number {
+function getColumnIndex(mode: ViewMode, txn: TransactionListItem, selectedMonth: number, selectedYear: number): number {
   const day = parseInt(txn.normalized_date.substring(8, 10), 10);
   const txnMonth = parseInt(txn.normalized_date.substring(5, 7), 10);
 
@@ -63,12 +63,7 @@ function getColumnIndex(
   return 0;
 }
 
-function matchesRange(
-  txn: TransactionListItem,
-  mode: ViewMode,
-  month: number,
-  year: number,
-): boolean {
+function matchesRange(txn: TransactionListItem, mode: ViewMode, month: number, year: number): boolean {
   const y = parseInt(txn.normalized_date.substring(0, 4), 10);
   if (y !== year) return false;
   if (mode === 'week') {
@@ -76,6 +71,25 @@ function matchesRange(
     return m === month;
   }
   return true;
+}
+
+function getBankButtonStyle(activeBank: BankTab, buttonBank: BankTab) {
+  const isActive = activeBank === buttonBank;
+  const isAgribank = buttonBank === 'AGRIBANK';
+
+  if (!isActive) {
+    return {
+      backgroundColor: '#ffffff',
+      borderColor: 'var(--border)',
+      color: 'var(--text-main)',
+    };
+  }
+
+  return {
+    backgroundColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    borderColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    color: '#ffffff',
+  };
 }
 
 export function LedgerReportView() {
@@ -97,21 +111,19 @@ export function LedgerReportView() {
     }
     const years = [...yearSet].sort((a, b) => b - a);
     return years.length > 0 ? years : [currentDate.getFullYear()];
-  }, [bidvTransactions, agribankTransactions]);
+  }, [bidvTransactions, agribankTransactions, currentDate]);
 
   const columnLabels = useMemo(() => buildColumnLabels(viewMode, month, year), [viewMode, month, year]);
   const colCount = columnLabels.length;
 
   const groups = useMemo<LedgerGroup[]>(() => {
     const transactions = bank === 'BIDV' ? bidvTransactions : agribankTransactions;
-
-    // category code → { ledgerAccount, name }
     const catMeta = new Map<string, { name: string; ledgerAccount: string }>();
+
     for (const cat of categories) {
       catMeta.set(cat.code, { name: cat.name, ledgerAccount: cat.ledger_account ?? '' });
     }
 
-    // ledgerAccount → catCode → values[]
     const ledgerMap = new Map<string, Map<string, number[]>>();
 
     for (const txn of transactions) {
@@ -165,9 +177,10 @@ export function LedgerReportView() {
     return { values, total };
   }, [groups, colCount]);
 
-  function handleDownload() {
+  async function handleDownload() {
+    const XLSX = await loadXLSX();
     const header = ['TK', 'Danh mục', ...columnLabels, 'Tổng cộng'];
-    const data: any[][] = [];
+    const data: Array<Array<string | number>> = [];
 
     for (const g of groups) {
       if (g.categories.length === 1) {
@@ -177,7 +190,7 @@ export function LedgerReportView() {
         for (const cat of g.categories) {
           data.push([g.ledgerAccount, cat.name, ...cat.values, cat.total]);
         }
-        data.push([g.ledgerAccount, '** Cộng TK ' + g.ledgerAccount, ...g.values, g.total]);
+        data.push([g.ledgerAccount, `** Cộng TK ${g.ledgerAccount}`, ...g.values, g.total]);
       }
     }
     data.push(['', 'TỔNG CỘNG', ...grandTotals.values, grandTotals.total]);
@@ -185,11 +198,11 @@ export function LedgerReportView() {
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Báo cáo TK');
-    const modeSuffix = viewMode === 'week' ? `T${month}-${year}` : viewMode === 'month' ? `${year}` : `${year}`;
+    const modeSuffix = viewMode === 'week' ? `T${month}-${year}` : `${year}`;
     XLSX.writeFile(wb, `Bao-cao-TK_${bank}_${modeSuffix}.xlsx`);
   }
 
-  const VIEW_MODES: { key: ViewMode; label: string }[] = [
+  const viewModes: { key: ViewMode; label: string }[] = [
     { key: 'week', label: 'Tuần' },
     { key: 'month', label: 'Tháng' },
     { key: 'year', label: 'Năm' },
@@ -200,48 +213,44 @@ export function LedgerReportView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Báo cáo theo Tài khoản</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Tổng hợp theo TK danh mục, nhóm các danh mục cùng TK
-          </p>
+          <p className="mt-0.5 text-sm text-gray-500">Tổng hợp theo TK danh mục, nhóm các danh mục cùng TK</p>
         </div>
-        <button
-          onClick={handleDownload}
-          disabled={groups.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
+        <button onClick={handleDownload} disabled={groups.length === 0} className="btn btn-md btn-primary">
           <Download className="w-4 h-4" />
           Tải Excel
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Ngân hàng</label>
-            <select
-              value={bank}
-              onChange={(e) => setBank(e.target.value as BankTab)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="AGRIBANK">AGRIBANK</option>
-              <option value="BIDV">BIDV</option>
-            </select>
+            <div className="flex items-center gap-2">
+              {BANK_BUTTONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setBank(option.key)}
+                  className="btn btn-md"
+                  style={getBankButtonStyle(bank, option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-1 rounded-lg border border-gray-300 p-0.5">
-            {VIEW_MODES.map((m) => (
+            {viewModes.map((mode) => (
               <button
-                key={m.key}
-                onClick={() => setViewMode(m.key)}
+                key={mode.key}
+                onClick={() => setViewMode(mode.key)}
                 className={clsx(
                   'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                  viewMode === m.key
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
+                  viewMode === mode.key ? 'bg-[var(--primary)] text-white' : 'text-gray-600 hover:bg-[var(--btn-neutral-hover)]'
                 )}
               >
-                {m.label}
+                {mode.label}
               </button>
             ))}
           </div>
@@ -252,10 +261,12 @@ export function LedgerReportView() {
               <select
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               >
                 {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>{i + 1}</option>
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1}
+                  </option>
                 ))}
               </select>
             </div>
@@ -266,27 +277,28 @@ export function LedgerReportView() {
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               {availableYears.map((y) => (
-                <option key={y} value={y}>{y}</option>
+                <option key={y} value={y}>
+                  {y}
+                </option>
               ))}
             </select>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       {groups.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">Không có dữ liệu.</p>
+        <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
+          <p className="text-sm text-gray-400">Không có dữ liệu.</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">TK</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">Danh mục</th>
                   {columnLabels.map((label) => (
@@ -298,16 +310,16 @@ export function LedgerReportView() {
                 </tr>
               </thead>
               <tbody>
-                {groups.map((g) => (
-                  <GroupRows key={g.ledgerAccount} group={g} colCount={colCount} />
+                {groups.map((group) => (
+                  <GroupRows key={group.ledgerAccount} group={group} />
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-gray-50 border-t-2 border-gray-300">
+                <tr className="border-t-2 border-gray-300 bg-gray-50">
                   <td className="px-4 py-3 font-bold text-gray-900" colSpan={2}>Tổng cộng</td>
-                  {grandTotals.values.map((v, i) => (
+                  {grandTotals.values.map((value, i) => (
                     <td key={i} className="text-right px-4 py-3 font-bold tabular-nums text-gray-900">
-                      {formatNumber(v)}
+                      {formatNumber(value)}
                     </td>
                   ))}
                   <td className="text-right px-4 py-3 font-bold tabular-nums text-gray-900">
@@ -323,7 +335,7 @@ export function LedgerReportView() {
   );
 }
 
-function GroupRows({ group, colCount }: { group: LedgerGroup; colCount: number }) {
+function GroupRows({ group }: { group: LedgerGroup }) {
   const multiCat = group.categories.length > 1;
 
   return (
@@ -332,7 +344,7 @@ function GroupRows({ group, colCount }: { group: LedgerGroup; colCount: number }
         <tr key={cat.code} className="border-b border-gray-100 hover:bg-gray-50">
           {idx === 0 ? (
             <td
-              className="px-4 py-2.5 font-mono text-xs text-indigo-700 bg-indigo-50/40 font-semibold whitespace-nowrap"
+              className="px-4 py-2.5 font-mono text-xs text-[var(--primary)] bg-[var(--primary-light)]/60 font-semibold whitespace-nowrap"
               rowSpan={multiCat ? group.categories.length + 1 : 1}
             >
               {group.ledgerAccount}
@@ -342,29 +354,23 @@ function GroupRows({ group, colCount }: { group: LedgerGroup; colCount: number }
             <span className="text-gray-800">{cat.name}</span>
             <span className="ml-1.5 text-[10px] text-gray-400">{cat.code}</span>
           </td>
-          {cat.values.map((v, i) => (
-            <td key={i} className={clsx('text-right px-4 py-2.5 tabular-nums', v === 0 ? 'text-gray-300' : 'text-gray-900')}>
-              {v === 0 ? '—' : formatNumber(v)}
+          {cat.values.map((value, i) => (
+            <td key={i} className={clsx('text-right px-4 py-2.5 tabular-nums', value === 0 ? 'text-gray-300' : 'text-gray-900')}>
+              {value === 0 ? '-' : formatNumber(value)}
             </td>
           ))}
-          <td className="text-right px-4 py-2.5 font-semibold tabular-nums text-gray-900">
-            {formatNumber(cat.total)}
-          </td>
+          <td className="text-right px-4 py-2.5 font-semibold tabular-nums text-gray-900">{formatNumber(cat.total)}</td>
         </tr>
       ))}
       {multiCat && (
-        <tr className="border-b border-gray-200 bg-indigo-50/30">
-          <td className="px-4 py-2 text-xs font-bold text-indigo-700">
-            Cộng TK {group.ledgerAccount}
-          </td>
-          {group.values.map((v, i) => (
-            <td key={i} className="text-right px-4 py-2 font-bold tabular-nums text-indigo-700 text-xs">
-              {formatNumber(v)}
+        <tr className="border-b border-gray-200 bg-[var(--primary-light)]/40">
+          <td className="px-4 py-2 text-xs font-bold text-[var(--primary)]">Cộng TK {group.ledgerAccount}</td>
+          {group.values.map((value, i) => (
+            <td key={i} className="text-right px-4 py-2 text-xs font-bold tabular-nums text-[var(--primary)]">
+              {formatNumber(value)}
             </td>
           ))}
-          <td className="text-right px-4 py-2 font-bold tabular-nums text-indigo-800">
-            {formatNumber(group.total)}
-          </td>
+          <td className="text-right px-4 py-2 font-bold tabular-nums text-[var(--primary-dark)]">{formatNumber(group.total)}</td>
         </tr>
       )}
     </>

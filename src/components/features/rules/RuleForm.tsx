@@ -61,7 +61,7 @@ export function RuleForm({
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <h3 className="text-sm font-semibold text-gray-800">{isEditing ? 'Chỉnh sửa Quy tắc' : 'Tạo Quy tắc mới'}</h3>
-        <button onClick={onClose} className="rounded p-1 text-gray-400 hover:text-gray-600">
+        <button onClick={onClose} className="btn btn-ghost btn-sm rounded-md p-1">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -218,12 +218,12 @@ export function RuleForm({
           <button
             onClick={onSave}
             disabled={loading || !isValid || !!regexError}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn btn-md btn-primary"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {isEditing ? 'Cập nhật' : 'Tạo quy tắc'}
           </button>
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100">
+          <button onClick={onClose} className="btn btn-md btn-neutral">
             Huỷ
           </button>
         </div>

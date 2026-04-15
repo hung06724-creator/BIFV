@@ -4,14 +4,17 @@ import clsx from 'clsx';
 import type { TransactionListItem, Pagination, CategoryOption } from './types';
 import { TransactionDetailView } from './detail/TransactionDetailView';
 import { InlineCategorySearch, categoryFrequency, recordCategoryUsage } from '@/components/shared/InlineCategorySearch';
+import { isInvoiceEligibleTransaction } from '@/lib/invoice';
 
 interface TransactionTableProps {
   transactions: TransactionListItem[];
   pagination: Pagination;
   categories: CategoryOption[];
-  onUpdateCategory: (transactionId: string, categoryId: string) => void;
+  bankCode?: 'BIDV' | 'AGRIBANK';
+  onUpdateCategory: (transactionId: string, categoryId: string | null) => void;
   onConfirmTransaction?: (transactionId: string) => void;
   onUpdateSplitMode: (transactionId: string, splitMode: TransactionListItem['split_mode']) => void;
+  onToggleInvoiceIssued?: (transactionId: string, invoiceIssued: boolean) => void;
   onGoToPage: (page: number) => void;
   onDeleteTransactions?: (ids: Set<string>) => void;
 }
@@ -55,8 +58,6 @@ function StatusBadge({ status }: { status: TransactionListItem['status'] }) {
     </span>
   );
 }
-
-
 
 function BulkCategoryDropdown({
   categories,
@@ -125,9 +126,11 @@ export function TransactionTable({
   transactions,
   pagination,
   categories,
+  bankCode,
   onUpdateCategory,
   onConfirmTransaction,
   onUpdateSplitMode,
+  onToggleInvoiceIssued,
   onGoToPage,
   onDeleteTransactions,
   isInsideScrollContext,
@@ -179,6 +182,13 @@ export function TransactionTable({
 
   const allSelected = transactions.length > 0 && selectedIds.size === transactions.length;
   const someSelected = selectedIds.size > 0;
+  const selectedInvoiceEligibleIds = useMemo(
+    () =>
+      transactions
+        .filter((transaction) => selectedIds.has(transaction.id) && isInvoiceEligibleTransaction(transaction, categories))
+        .map((transaction) => transaction.id),
+    [transactions, selectedIds, categories],
+  );
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -210,6 +220,13 @@ export function TransactionTable({
     onDeleteTransactions(selectedIds);
     setSelectedIds(new Set());
     setConfirmingDelete(false);
+  };
+
+  const applyBulkInvoiceIssued = (invoiceIssued: boolean) => {
+    if (!onToggleInvoiceIssued) return;
+    for (const id of selectedInvoiceEligibleIds) {
+      onToggleInvoiceIssued(id, invoiceIssued);
+    }
   };
 
   useEffect(() => {
@@ -268,6 +285,22 @@ export function TransactionTable({
               />
             )}
           </div>
+          {onToggleInvoiceIssued && selectedInvoiceEligibleIds.length > 0 && (
+            <>
+              <button
+                onClick={() => applyBulkInvoiceIssued(true)}
+                className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                Đánh dấu đã xuất
+              </button>
+              <button
+                onClick={() => applyBulkInvoiceIssued(false)}
+                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+              >
+                Đánh dấu chưa xuất
+              </button>
+            </>
+          )}
           {onDeleteTransactions && (
             confirmingDelete ? (
               <div className="flex items-center gap-2">
@@ -305,7 +338,10 @@ export function TransactionTable({
       )}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <div>
-          <table data-table-id={tableId} className="min-w-full divide-y divide-gray-200 text-sm">
+          <table
+            data-table-id={tableId}
+            className="min-w-full divide-y divide-gray-200 text-sm [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-20 [&_thead_th]:bg-gray-50"
+          >
             <thead className="bg-gray-50">
               <tr>
                 <th className="w-10 px-3 py-3 text-center">
@@ -322,15 +358,16 @@ export function TransactionTable({
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nội dung</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Phân bổ</th>
                 <th className="w-[180px] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Danh mục</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Hóa đơn</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">Trạng thái</th>
                 <th className="w-10 px-3 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {paddingTop > 0 && <tr style={{ height: paddingTop }}><td colSpan={8} /></tr>}
+              {paddingTop > 0 && <tr style={{ height: paddingTop }}><td colSpan={9} /></tr>}
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Không có giao dịch nào khớp bộ lọc hiện tại.
                   </td>
                 </tr>
@@ -390,8 +427,8 @@ export function TransactionTable({
                     </td>
                     <td className="px-3 py-2.5 align-middle">
                       <InlineCategorySearch
-                        currentName={t.match?.suggested_category_name || null}
-                        currentCode={t.match?.suggested_category_code || null}
+                        currentName={t.match?.confirmed_category_name || t.match?.suggested_category_name || null}
+                        currentCode={t.match?.confirmed_category_code || t.match?.suggested_category_code || null}
                         categories={categories}
                         onSelect={(catId) => onUpdateCategory(t.id, catId)}
                         transactionId={t.id}
@@ -404,6 +441,19 @@ export function TransactionTable({
                       />
                       {t.match && t.match.confidence_score > 0 && (
                         <ConfidenceBadge score={t.match.confidence_score} />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      {isInvoiceEligibleTransaction(t, categories) ? (
+                        <input
+                          type="checkbox"
+                          checked={t.invoice_issued === true}
+                          onChange={(e) => onToggleInvoiceIssued?.(t.id, e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          title={t.invoice_issued ? 'Đã xuất hóa đơn' : 'Chưa xuất hóa đơn'}
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-300">-</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-center align-middle">
@@ -434,7 +484,7 @@ export function TransactionTable({
                   </tr>
                 ))
               )}
-              {paddingBottom > 0 && <tr style={{ height: paddingBottom }}><td colSpan={8} /></tr>}
+              {paddingBottom > 0 && <tr style={{ height: paddingBottom }}><td colSpan={9} /></tr>}
             </tbody>
           </table>
           {isInsideScrollContext && transactions.length > 0 && (
@@ -519,6 +569,7 @@ export function TransactionTable({
             </button>
             <TransactionDetailView
               transactionId={reviewTransactionId}
+              bankCode={bankCode}
               variant="modal"
               onClose={() => setReviewTransactionId(null)}
             />

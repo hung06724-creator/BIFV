@@ -31,7 +31,7 @@ export function InlineCategorySearch({
   currentName: string | null;
   currentCode: string | null;
   categories: CategoryOption[];
-  onSelect: (categoryId: string) => void;
+  onSelect: (categoryId: string | null) => void;
   transactionId?: string;
   shouldAutoActivate?: boolean;
   onAutoActivated?: () => void;
@@ -152,12 +152,21 @@ export function InlineCategorySearch({
     }, 30);
   };
 
-  const selectItem = (cat: CategoryOption) => {
-    recordCategoryUsage(cat.id);
-    onSelect(cat.id);
+  const closeMenu = () => {
     setOpen(false);
     setQuery('');
     focusNextRow();
+  };
+
+  const selectItem = (cat: CategoryOption) => {
+    recordCategoryUsage(cat.id);
+    onSelect(cat.id);
+    closeMenu();
+  };
+
+  const clearSelection = () => {
+    onSelect(null);
+    closeMenu();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -220,7 +229,16 @@ export function InlineCategorySearch({
           {sorted.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-400">Không tìm thấy</div>
           ) : (
-            sorted.map((cat, idx) => (
+            <>
+              {(currentName || currentCode) && (
+                <button
+                  onClick={clearSelection}
+                  className="w-full border-b border-gray-100 px-3 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                >
+                  Bỏ chọn danh mục
+                </button>
+              )}
+              {sorted.map((cat, idx) => (
               <button
                 key={cat.id}
                 data-cat-item
@@ -238,7 +256,8 @@ export function InlineCategorySearch({
                   <div className="text-[10px] text-gray-400 mt-0.5">Sử dụng: {categoryFrequency[cat.id]} lần</div>
                 )}
               </button>
-            ))
+              ))}
+            </>
           )}
         </div>
       )}

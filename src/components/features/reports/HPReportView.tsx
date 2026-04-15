@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import clsx from 'clsx';
 import { useAppStore } from '@/lib/store';
 import { useStudentStore, type StudentInfo } from '@/lib/studentStore';
@@ -8,10 +8,38 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Clock, CheckCheck, RotateCcw,
   Search, Archive,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { BankTab } from '@/lib/store';
 import { extractNameWithRegex, extractNamesWithAI } from '@/services/nameExtraction';
-import { HPSavedView } from './HPSavedView';
+import { loadXLSX } from '@/lib/lazyVendors';
+
+const HPSavedView = lazy(async () => {
+  const module = await import('./HPSavedView');
+  return { default: module.HPSavedView };
+});
+
+const BANK_BUTTONS: { key: BankTab; label: string }[] = [
+  { key: 'BIDV', label: 'BIDV' },
+  { key: 'AGRIBANK', label: 'AGRIBANK' },
+];
+
+function getBankButtonStyle(activeBank: BankTab, buttonBank: BankTab) {
+  const isActive = activeBank === buttonBank;
+  const isAgribank = buttonBank === 'AGRIBANK';
+
+  if (!isActive) {
+    return {
+      backgroundColor: '#ffffff',
+      borderColor: 'var(--border)',
+      color: 'var(--text-main)',
+    };
+  }
+
+  return {
+    backgroundColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    borderColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    color: '#ffffff',
+  };
+}
 
 function formatNumber(value: number): string {
   return value.toLocaleString('vi-VN');
@@ -83,7 +111,7 @@ function ManualStudentSearch({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors"
+        className="btn btn-sm btn-secondary rounded-md"
       >
         <Search className="w-3 h-3" /> Tìm SV thủ công
       </button>
@@ -130,7 +158,7 @@ function ManualStudentSearch({
       )}
       <button
         onClick={() => { setOpen(false); setQuery(''); }}
-        className="text-xs text-gray-400 hover:text-gray-600"
+        className="btn btn-sm btn-ghost justify-start px-0"
       >
         ✕ Đóng
       </button>
@@ -160,6 +188,7 @@ export function HPReportView() {
 
   const bidvTransactions = useAppStore((s) => s.bidvTransactions);
   const agribankTransactions = useAppStore((s) => s.agribankTransactions);
+  const categories = useAppStore((s) => s.categories);
 
   const students = useStudentStore((s) => s.students);
   const findByName = useStudentStore((s) => s.findByName);
@@ -179,18 +208,37 @@ export function HPReportView() {
   const confirmAll = useTuitionStore((s) => s.confirmAll);
   const resetRecord = useTuitionStore((s) => s.resetRecord);
 
-  // Available category codes from allocations
-  const availableCategoryCodes = useMemo(() => {
-    const codes = new Set<string>();
+  // Available categories from allocations
+  const availableCategories = useMemo(() => {
+    const availableMap = new Map<string, string>();
     const transactions = bank === 'BIDV' ? bidvTransactions : agribankTransactions;
+
+    for (const category of categories) {
+      if (category.code) {
+        availableMap.set(category.code, category.name || category.code);
+      }
+    }
+
     for (const t of transactions) {
       for (const a of t.allocations) {
         const code = a.confirmed_category_code || a.suggested_category_code;
-        if (code) codes.add(code);
+        const name = a.confirmed_category_name || a.suggested_category_name;
+        if (!code) continue;
+        if (!availableMap.has(code)) {
+          availableMap.set(code, name || code);
+        }
       }
     }
-    return Array.from(codes).sort();
-  }, [bank, bidvTransactions, agribankTransactions]);
+
+    return Array.from(availableMap.entries())
+      .filter(([code]) =>
+        transactions.some((t) =>
+          t.allocations.some((a) => (a.confirmed_category_code || a.suggested_category_code) === code)
+        )
+      )
+      .sort(([codeA], [codeB]) => codeA.localeCompare(codeB))
+      .map(([code, name]) => ({ code, name }));
+  }, [bank, bidvTransactions, agribankTransactions, categories]);
 
   const availableYears = useMemo(() => {
     const yearSet = new Set<number>();
@@ -398,8 +446,9 @@ export function HPReportView() {
     const mode = (e.target.dataset.mode || 'replace') as 'replace' | 'add';
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await loadXLSX();
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
@@ -453,14 +502,16 @@ export function HPReportView() {
 
   // ─── Download Excel (saved records) ─────────────────────────────────────
 
-  function handleDownloadSaved() {
-    const header = ['STT', 'Thời gian', 'Số tiền', 'Nội dung', 'MHS', 'Họ và tên', 'Ngày tháng năm sinh', 'Lớp'];
+  async function handleDownloadSaved() {
+    const XLSX = await loadXLSX();
+    const header = ['STT', 'Thời gian', 'Số tiền', 'Danh mục', 'Nội dung', 'MHS', 'Họ và tên', 'Ngày tháng năm sinh', 'Lớp'];
     const data: any[][] = filteredSaved.map((r, i) => {
       const st = r.confirmedStudent;
       return [
         i + 1,
         r.date,
         r.amount,
+        r.categoryCode,
         r.description,
         st?.maHoSo ?? '',
         st?.hoTen ?? r.extractedName,
@@ -468,20 +519,20 @@ export function HPReportView() {
         st?.nganh ?? '',
       ];
     });
-    data.push(['', 'TỔNG CỘNG', savedTotal, '', '', '', '', '']);
+    data.push(['', 'TỔNG CỘNG', savedTotal, '', '', '', '', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     ws['!cols'] = [
-      { wch: 5 }, { wch: 15 }, { wch: 18 }, { wch: 60 },
+      { wch: 5 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 60 },
       { wch: 14 }, { wch: 25 }, { wch: 16 }, { wch: 15 },
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Lưu trữ HP');
+    XLSX.utils.book_append_sheet(wb, ws, 'Lưu trữ GD');
 
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    XLSX.writeFile(wb, `Luu-tru-HP_${dateStr}.xlsx`);
+    XLSX.writeFile(wb, `Luu-tru-giao-dich_${dateStr}.xlsx`);
   }
 
   // ─── Render helpers ─────────────────────────────────────────────────────
@@ -599,10 +650,10 @@ export function HPReportView() {
         <button
           onClick={() => setShowStudentPanel(!showStudentPanel)}
           className={clsx(
-            'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border',
+            'btn btn-md',
             showStudentPanel
-              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+              ? 'btn-secondary'
+              : 'btn-neutral',
           )}
         >
           <Users className="w-4 h-4" />
@@ -612,13 +663,13 @@ export function HPReportView() {
 
       {/* Student import panel */}
       {showStudentPanel && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] rounded-xl p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-indigo-800">👨‍🎓 Dữ liệu sinh viên ({students.length} SV)</h2>
             {students.length > 0 && (
               <button
                 onClick={() => { if (confirm('Xóa toàn bộ dữ liệu sinh viên?')) clearStudents(); }}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="btn btn-sm btn-danger"
               >
                 <Trash2 className="w-3 h-3" /> Xóa tất cả
               </button>
@@ -626,16 +677,16 @@ export function HPReportView() {
           </div>
           <p className="text-xs text-indigo-600">Nhập dữ liệu sinh viên từ Excel (Mã hồ sơ | Họ tên | Ngày sinh | Lớp)</p>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => handleFileImport('replace')} className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"><Upload className="w-3 h-3" /> Nhập từ file Excel</button>
-            <button onClick={() => handleFileImport('add')} className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white text-xs font-medium rounded-lg hover:bg-indigo-600 transition-colors"><Upload className="w-3 h-3" /> Thêm từ file Excel</button>
-            <button onClick={() => handlePasteStudents('replace')} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-indigo-300 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-50 transition-colors">📋 Dán từ clipboard</button>
-            <button onClick={() => handlePasteStudents('add')} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-indigo-300 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-50 transition-colors">✨ Thêm từ clipboard</button>
+            <button onClick={() => handleFileImport('replace')} className="btn btn-sm btn-primary"><Upload className="w-3 h-3" /> Nhập từ file Excel</button>
+            <button onClick={() => handleFileImport('add')} className="btn btn-sm btn-secondary"><Upload className="w-3 h-3" /> Thêm từ file Excel</button>
+            <button onClick={() => handlePasteStudents('replace')} className="btn btn-sm btn-neutral">📋 Dán từ clipboard</button>
+            <button onClick={() => handlePasteStudents('add')} className="btn btn-sm btn-neutral">✨ Thêm từ clipboard</button>
           </div>
           {students.length > 0 && (
             <div className="max-h-48 overflow-y-auto border border-indigo-200 rounded-lg bg-white">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-indigo-100 sticky top-0">
+                  <tr className="bg-[var(--primary-light)] sticky top-0">
                     <th className="px-2 py-1.5 text-left font-semibold text-indigo-800 w-10">STT</th>
                     <th className="px-2 py-1.5 text-left font-semibold text-indigo-800">Mã hồ sơ</th>
                     <th className="px-2 py-1.5 text-left font-semibold text-indigo-800">Họ tên</th>
@@ -690,7 +741,7 @@ export function HPReportView() {
           )}
         >
           <Archive className="w-4 h-4" />
-          Lưu trữ học phí
+          Lưu trữ giao dịch
           {savedRecords.length > 0 && (
             <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">{savedRecords.length}</span>
           )}
@@ -707,10 +758,19 @@ export function HPReportView() {
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Ngân hàng</label>
-                <select value={bank} onChange={(e) => setBank(e.target.value as BankTab)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="AGRIBANK">AGRIBANK</option>
-                  <option value="BIDV">BIDV</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  {BANK_BUTTONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setBank(option.key)}
+                      className="btn btn-md"
+                      style={getBankButtonStyle(bank, option.key)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Tháng</label>
@@ -728,21 +788,21 @@ export function HPReportView() {
                 Tổng: <span className="font-semibold">{tuitionRecords.length}</span> giao dịch
               </div>
             </div>
-            {availableCategoryCodes.length > 0 && (
+            {availableCategories.length > 0 && (
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <label className="text-sm font-medium text-gray-700">Danh mục:</label>
-                {availableCategoryCodes.map((code) => (
+                {availableCategories.map(({ code, name }) => (
                   <button
                     key={code}
                     onClick={() => toggleCategory(code)}
                     className={clsx(
-                      'px-3 py-1 text-xs font-medium rounded-full border transition-colors',
+                      'inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-colors',
                       selectedCategories.has(code)
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
                     )}
                   >
-                    {code}
+                    <span>{name || code}</span>
                   </button>
                 ))}
               </div>
@@ -754,8 +814,8 @@ export function HPReportView() {
             <h2 className="text-sm font-semibold text-gray-800">Trích xuất tên người học</h2>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-1 rounded-lg border border-gray-300 p-0.5">
-                <button onClick={() => setExtractionMode('ai')} className={clsx('px-3 py-1 text-sm font-medium rounded-md transition-colors', extractionMode === 'ai' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100')}>🤖 AI (Groq)</button>
-                <button onClick={() => setExtractionMode('regex')} className={clsx('px-3 py-1 text-sm font-medium rounded-md transition-colors', extractionMode === 'regex' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100')}>🔤 Regex</button>
+                <button onClick={() => setExtractionMode('ai')} className={clsx('btn btn-sm border-0 shadow-none', extractionMode === 'ai' ? 'btn-primary' : 'btn-ghost')}>🤖 AI (Groq)</button>
+                <button onClick={() => setExtractionMode('regex')} className={clsx('btn btn-sm border-0 shadow-none', extractionMode === 'regex' ? 'btn-primary' : 'btn-ghost')}>🔤 Regex</button>
               </div>
               {extractionMode === 'ai' && (
                 <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Groq API Key..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -769,7 +829,7 @@ export function HPReportView() {
               <button
                 onClick={handleExtractAll}
                 disabled={isExtracting || (stats.chua_trich_xuat + stats.khong_trich_xuat_duoc) === 0}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="btn btn-md btn-primary"
               >
                 {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserSearch className="w-4 h-4" />}
                 {isExtracting
@@ -777,7 +837,7 @@ export function HPReportView() {
                   : `Trích xuất (${stats.chua_trich_xuat + stats.khong_trich_xuat_duoc} chưa xử lý / lỗi)`}
               </button>
               {stats.da_trich_xuat_chua_xac_nhan > 0 && (
-                <button onClick={handleConfirmAll} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+                <button onClick={handleConfirmAll} className="btn btn-md btn-secondary">
                   <CheckCheck className="w-4 h-4" /> Xác nhận & lưu tất cả
                 </button>
               )}
@@ -796,7 +856,7 @@ export function HPReportView() {
               <button
                 key={key}
                 onClick={() => setStatusFilter(key)}
-                className={clsx('border rounded-xl px-4 py-3 text-left transition-all', colors, statusFilter === key ? 'ring-2 ring-indigo-500 shadow-md' : 'hover:shadow-sm')}
+                className={clsx('border rounded-xl px-4 py-3 text-left transition-all', colors, statusFilter === key ? 'ring-2 ring-[var(--primary)] shadow-md' : 'hover:shadow-sm')}
               >
                 <div className="text-2xl font-bold">{count}</div>
                 <div className="text-xs mt-0.5">{label}</div>
@@ -808,7 +868,7 @@ export function HPReportView() {
           {filteredRecords.length === 0 ? (
             <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
               <p className="text-gray-400 text-sm">
-                {tuitionRecords.length === 0 ? 'Không có giao dịch HP trong kỳ này.' : 'Không có giao dịch nào ở trạng thái này.'}
+                {tuitionRecords.length === 0 ? 'Không có giao dịch thuộc danh mục đã chọn trong kỳ này.' : 'Không có giao dịch nào ở trạng thái này.'}
               </p>
             </div>
           ) : (
@@ -865,9 +925,13 @@ export function HPReportView() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* TAB 2: Lưu trữ học phí                                            */}
+      {/* TAB 2: Lưu trữ giao dịch                                          */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'saved' && <HPSavedView />}
+      {activeTab === 'saved' && (
+        <Suspense fallback={<div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải lưu trữ giao dịch...</div>}>
+          <HPSavedView />
+        </Suspense>
+      )}
     </div>
   );
 }

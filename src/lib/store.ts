@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import type { TransactionListItem, CategoryOption, BatchOption } from '@/components/features/transactions/types';
 import type { RuleListItem } from '@/components/features/rules/types';
 import { MOCK_CATEGORIES, MOCK_RULES } from '@/components/features/rules/mock-data';
+import {
+  isSupabaseRuntimeReady,
+  persistRuntimeStateToDevApi,
+  queueRuntimeStatePersist,
+} from '@/services/runtimeState.service';
 
 export type BankTab = 'BIDV' | 'AGRIBANK';
 
@@ -43,15 +48,16 @@ function toPersistedState(state: any): PersistedAppState {
 async function persistStateToCode(state: PersistedAppState): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  try {
-    await fetch('/api/dev-data', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state),
-    });
-  } catch {
-    // Keep the UI responsive even if the local file writer is unavailable.
+  if (!isSupabaseRuntimeReady()) {
+    try {
+      await persistRuntimeStateToDevApi(state);
+      return;
+    } catch {
+      // Keep runtime persistence best-effort in local/dev mode.
+    }
   }
+
+  queueRuntimeStatePersist(state);
 }
 
 interface AppState {

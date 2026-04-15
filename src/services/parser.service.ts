@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import type { BankTransaction, SplitMode, TransactionType } from '@/domain/types';
+import { loadXLSX } from '@/lib/lazyVendors';
 
 export interface ClassifiedAllocation {
   category_code: string;
@@ -71,6 +71,7 @@ export class ParserService {
    * Preview the first 20 rows of a file buffer and detect columns.
    */
   async previewFileBuffer(buffer: ArrayBuffer, bankCode: string = 'BIDV'): Promise<{ detectedColumns: string[], previewRows: any[], totalRows: number }> {
+    const XLSX = await loadXLSX();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
@@ -121,6 +122,7 @@ export class ParserService {
    * Parse full file buffer and return normalized transactions.
    */
   async parseFileBuffer(buffer: ArrayBuffer, bankCode: string = 'BIDV'): Promise<Partial<BankTransaction>[]> {
+    const XLSX = await loadXLSX();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
@@ -235,6 +237,7 @@ export class ParserService {
    * A transaction with 2+ filled category columns → horizontal.
    */
   async parseClassifiedBuffer(buffer: ArrayBuffer, bankCode: string = 'AGRIBANK'): Promise<ClassifiedTransaction[]> {
+    const XLSX = await loadXLSX();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     if (!worksheet) {

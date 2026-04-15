@@ -44,7 +44,7 @@ function defaultMatchMeta(transactionId: string, splitMode: TransactionDetail['s
   };
 }
 
-export function useTransactionDetail(transactionId: string) {
+export function useTransactionDetail(transactionId: string, preferredBank?: BankTab) {
   const bidvTransactions = useAppStore((s) => s.bidvTransactions);
   const agribankTransactions = useAppStore((s) => s.agribankTransactions);
   const categories = useAppStore((s) => s.categories);
@@ -55,6 +55,20 @@ export function useTransactionDetail(transactionId: string) {
   const [matchMeta, setMatchMeta] = useState<MatchMetaState | null>(null);
 
   const source = useMemo(() => {
+    if (preferredBank === 'BIDV') {
+      const bidv = bidvTransactions.find((item) => item.id === transactionId);
+      if (bidv) {
+        return { item: bidv, bank: 'BIDV' as BankTab };
+      }
+    }
+
+    if (preferredBank === 'AGRIBANK') {
+      const agribank = agribankTransactions.find((item) => item.id === transactionId);
+      if (agribank) {
+        return { item: agribank, bank: 'AGRIBANK' as BankTab };
+      }
+    }
+
     const bidv = bidvTransactions.find((item) => item.id === transactionId);
     if (bidv) {
       return { item: bidv, bank: 'BIDV' as BankTab };
@@ -66,7 +80,7 @@ export function useTransactionDetail(transactionId: string) {
     }
 
     return null;
-  }, [bidvTransactions, agribankTransactions, transactionId]);
+  }, [bidvTransactions, agribankTransactions, transactionId, preferredBank]);
 
   useEffect(() => {
     if (source?.item) {
@@ -150,7 +164,7 @@ export function useTransactionDetail(transactionId: string) {
     async (
       allocationNo: number,
       patch: Partial<Pick<TransactionAllocationView, 'amount' | 'beneficiary_name' | 'beneficiary_code' | 'notes'>>,
-      categoryId?: string
+      categoryId?: string | null
     ) => {
       if (!source) return;
 

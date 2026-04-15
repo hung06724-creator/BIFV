@@ -15,8 +15,24 @@ const VN = new Intl.NumberFormat('vi-VN');
 
 const BANK_TABS: { key: BankTab; label: string }[] = [
   { key: 'BIDV', label: 'BIDV' },
-  { key: 'AGRIBANK', label: 'Agribank' },
+  { key: 'AGRIBANK', label: 'AGRIBANK' },
 ];
+
+function getBankButtonClass(activeBank: BankTab, buttonBank: BankTab) {
+  if (activeBank !== buttonBank) {
+    return 'btn-neutral';
+  }
+
+  return buttonBank === 'AGRIBANK' ? 'border-[var(--agribank)] bg-[var(--agribank)] text-white' : 'btn-primary';
+}
+
+function getBankCountBadgeClass(activeBank: BankTab, buttonBank: BankTab) {
+  if (activeBank !== buttonBank) {
+    return 'bg-[var(--primary-light)] text-[var(--primary)]';
+  }
+
+  return buttonBank === 'AGRIBANK' ? 'bg-[var(--agribank-dark)] text-white' : 'bg-white/20 text-white';
+}
 
 interface MonthGroup {
   key: string;
@@ -70,6 +86,7 @@ export function TransactionListView() {
     updateCategory,
     confirmTransaction,
     updateSplitMode,
+    toggleInvoiceIssued,
     reclassify,
   } = useTransactionList();
   const [searchParams] = useSearchParams();
@@ -163,17 +180,15 @@ export function TransactionListView() {
             key={tab.key}
             onClick={() => setActiveBank(tab.key)}
             className={clsx(
-              'rounded-lg border px-5 py-2 text-sm font-medium transition-colors',
-              activeBank === tab.key
-                ? 'border-indigo-600 bg-indigo-600 text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              'btn btn-md',
+              getBankButtonClass(activeBank, tab.key)
             )}
           >
             {tab.label}
             <span
               className={clsx(
                 'ml-2 rounded-full px-1.5 py-0.5 text-xs font-bold',
-                activeBank === tab.key ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'
+                getBankCountBadgeClass(activeBank, tab.key)
               )}
             >
               {bankCounts[tab.key]}
@@ -190,10 +205,10 @@ export function TransactionListView() {
               key={year}
               onClick={() => { setSelectedYear(year); setExpandedMonths(new Set()); }}
               className={clsx(
-                'rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors',
+                'btn btn-md',
                 selectedYear === year
-                  ? 'border-indigo-600 bg-indigo-600 text-white'
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'btn-primary'
+                  : 'btn-neutral'
               )}
             >
               {year}
@@ -259,7 +274,7 @@ export function TransactionListView() {
           <button
             onClick={() => classifiedInputRef.current?.click()}
             disabled={classifiedLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+            className="btn btn-sm btn-secondary"
           >
             <FileUp className="h-3.5 w-3.5" />
             {classifiedLoading ? 'Đang import...' : 'Nhập dữ liệu đã phân loại'}
@@ -267,14 +282,14 @@ export function TransactionListView() {
           <button
             onClick={() => exportTransactionsToExcel(yearFilteredTransactions, categories, activeBank)}
             disabled={yearFilteredTransactions.length === 0}
-            className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50"
+            className="hidden"
           >
             <Download className="h-3.5 w-3.5" />
             Xuất Excel
           </button>
           <button
             onClick={reclassify}
-            className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-100"
+            className="btn btn-sm btn-primary"
           >
             <Brain className="h-3.5 w-3.5" />
             Phân loại tự động
@@ -320,7 +335,7 @@ export function TransactionListView() {
                       ? <ChevronDown className="w-5 h-5 text-gray-400" />
                       : <ChevronRight className="w-5 h-5 text-gray-400" />
                     }
-                    <Calendar className="w-4 h-4 text-indigo-500" />
+                    <Calendar className="w-4 h-4 text-[var(--primary)]" />
                     <span className="text-sm font-semibold text-gray-800">{month.label}</span>
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                       {month.count} giao dịch
@@ -355,9 +370,11 @@ export function TransactionListView() {
                           total_pages: 1,
                         }}
                         categories={categories}
+                        bankCode={activeBank}
                         onUpdateCategory={updateCategory}
                         onConfirmTransaction={confirmTransaction}
                         onUpdateSplitMode={updateSplitMode}
+                        onToggleInvoiceIssued={toggleInvoiceIssued}
                         onGoToPage={() => {}}
                         isInsideScrollContext={true}
                       />
@@ -389,14 +406,14 @@ function StatBadge({
   onClick?: () => void;
 }) {
   const colorClasses = {
-    gray: 'bg-gray-100 text-gray-700',
-    yellow: 'bg-yellow-100 text-yellow-700',
-    blue: 'bg-blue-100 text-blue-700',
-    green: 'bg-green-100 text-green-700',
-    red: 'bg-red-100 text-red-700',
+    gray: 'bg-[var(--btn-neutral-hover)] text-[var(--btn-neutral-text)]',
+    yellow: 'bg-[var(--btn-warning-bg)] text-[var(--btn-warning-text)]',
+    blue: 'bg-[var(--btn-secondary-bg)] text-[var(--btn-secondary-text)]',
+    green: 'bg-[var(--primary-light)] text-[var(--primary)]',
+    red: 'bg-[var(--btn-danger-bg)] text-[var(--btn-danger-text)]',
   }[color];
 
-  const activeRing = active ? 'ring-2 ring-indigo-500 ring-offset-1' : '';
+  const activeRing = active ? 'ring-2 ring-[var(--primary)] ring-offset-1' : '';
   const clickable = onClick ? 'cursor-pointer hover:opacity-80' : '';
 
   return (

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 76">
+  <defs>
+    <clipPath id="hnivc-badge">
+      <circle cx="38" cy="38" r="37" />
+    </clipPath>
+  </defs>
+  <image
+    href="/group-4.png"
+    x="0"
+    y="0"
+    width="234"
+    height="76"
+    clip-path="url(#hnivc-badge)"
+    preserveAspectRatio="xMinYMin slice"
+  />
+</svg>

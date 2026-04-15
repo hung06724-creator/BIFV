@@ -9,30 +9,45 @@ import {
   X,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useTransactionDetail } from './useTransactionDetail';
 import { ClassificationPanel } from './ClassificationPanel';
 import { CopyAllocationModal } from './CopyAllocationModal';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type BankTab } from '@/lib/store';
 
 interface TransactionDetailViewProps {
   transactionId: string;
+  bankCode?: BankTab;
   variant?: 'page' | 'modal';
   onClose?: () => void;
+  autoFocusClassification?: boolean;
 }
 
 const VN_NUMBER = new Intl.NumberFormat('vi-VN');
 
 export function TransactionDetailView({
   transactionId,
+  bankCode,
   variant = 'page',
   onClose,
+  autoFocusClassification = false,
 }: TransactionDetailViewProps) {
-  const { transaction, categories, loading, error, updateAllocation, addAllocation, removeAllocation, copyAllocationsFrom, confirmAllocations, saveNote, clearNote, transactionNote } = useTransactionDetail(transactionId);
+  const { transaction, categories, loading, error, updateAllocation, addAllocation, removeAllocation, copyAllocationsFrom, confirmAllocations, saveNote, clearNote, transactionNote } = useTransactionDetail(transactionId, bankCode);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const classificationRef = useRef<HTMLDivElement | null>(null);
   const isModal = variant === 'modal';
+
+  useEffect(() => {
+    if (!autoFocusClassification || !transaction || isModal) return;
+
+    const node = classificationRef.current;
+    if (!node) return;
+
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    node.focus({ preventScroll: true });
+  }, [autoFocusClassification, transaction, isModal]);
 
   const handleSave = useCallback((note: string) => {
     saveNote(note);
@@ -169,20 +184,22 @@ export function TransactionDetailView({
         </div>
       )}
 
-      <ClassificationPanel
-        categories={categories}
-        splitMode={transaction.split_mode}
-        allocations={transaction.allocations}
-        validation={transaction.validation}
-        onAllocationChange={updateAllocation}
-        onAddAllocation={addAllocation}
-        onRemoveAllocation={removeAllocation}
-        onCopyAllocations={transaction.split_mode === 'horizontal' ? () => setShowCopyModal(true) : undefined}
-        onSave={handleSave}
-        onDeleteNote={clearNote}
-        onAdjustRemaining={transaction.split_mode !== 'direct' ? adjustRemaining : undefined}
-        initialNote={transactionNote}
-      />
+      <div ref={classificationRef} id="classification-section" tabIndex={-1} className="outline-none">
+        <ClassificationPanel
+          categories={categories}
+          splitMode={transaction.split_mode}
+          allocations={transaction.allocations}
+          validation={transaction.validation}
+          onAllocationChange={updateAllocation}
+          onAddAllocation={addAllocation}
+          onRemoveAllocation={removeAllocation}
+          onCopyAllocations={transaction.split_mode === 'horizontal' ? () => setShowCopyModal(true) : undefined}
+          onSave={handleSave}
+          onDeleteNote={clearNote}
+          onAdjustRemaining={transaction.split_mode !== 'direct' ? adjustRemaining : undefined}
+          initialNote={transactionNote}
+        />
+      </div>
 
       {savedFeedback && (
         <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 shadow-sm animate-pulse">

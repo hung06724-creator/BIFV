@@ -221,7 +221,7 @@ export function RuleTable({
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => onEdit(rule)}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                          className="btn btn-sm btn-ghost rounded p-1.5 text-[var(--primary)]"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -229,7 +229,7 @@ export function RuleTable({
                           onClick={() => {
                             if (confirm(`Xoá rule "${rule.keyword || rule.type}"?`)) onDelete(rule.id);
                           }}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className="btn btn-sm btn-ghost rounded p-1.5 text-[var(--danger)]"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

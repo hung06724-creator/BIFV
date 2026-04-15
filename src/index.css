@@ -1,20 +1,151 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --primary: #2f6b5f;
+  --primary-dark: #28584f;
+  --primary-light: #edf5f2;
+  --secondary: #66756f;
+  --success: #3b7d61;
+  --warning: #c98a2e;
+  --danger: #b84747;
+  --background: #f6f5f1;
+  --sidebar-bg: #16322d;
+  --sidebar-hover: #265049;
+  --card-bg: #ffffff;
+  --text-main: #1f2937;
+  --text-muted: #61706a;
+  --border: #d9e2dc;
+  --foreground: var(--text-main);
 
-  /* HNIVC brand palette (derived from logo) */
-  --brand-primary: #1A3C7B;      /* dark navy blue – gear/text */
-  --brand-primary-light: #2A5298; /* lighter blue for hover */
-  --brand-primary-dark: #0F2550;  /* deeper blue for active */
-  --brand-accent-red: #C62828;    /* red gate in seal */
-  --brand-accent-gold: #F5C518;   /* gold background of seal */
-  --brand-border: #2A5298;        /* sidebar dividers */
+  --btn-primary-bg: #2f6b5f;
+  --btn-primary-hover: #28584f;
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #edf5f2;
+  --btn-secondary-hover: #dcebe5;
+  --btn-secondary-text: #28584f;
+  --btn-secondary-border: #c8d8d1;
+  --btn-neutral-bg: #ffffff;
+  --btn-neutral-hover: #f3f4f2;
+  --btn-neutral-text: #4b5a55;
+  --btn-neutral-border: #d9e2dc;
+  --btn-warning-bg: #f6e9cf;
+  --btn-warning-hover: #eeddb8;
+  --btn-warning-text: #9a6516;
+  --btn-warning-border: #e2c78f;
+  --btn-danger-bg: #f7e3e3;
+  --btn-danger-hover: #efcfcf;
+  --btn-danger-text: #9e3e3e;
+  --btn-danger-border: #d9a9a9;
+  --agribank: #ae1c3f;
+  --agribank-dark: #8f1734;
+  --agribank-light: #f6e3e8;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 107, 95, 0.16);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.btn-md {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-lg {
+  padding: 0.625rem 1.125rem;
+  font-size: 0.875rem;
+}
+
+.btn-primary {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+  border-color: var(--btn-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--btn-secondary-bg);
+  border-color: var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--btn-secondary-hover);
+}
+
+.btn-neutral {
+  background: var(--btn-neutral-bg);
+  border-color: var(--btn-neutral-border);
+  color: var(--btn-neutral-text);
+}
+
+.btn-neutral:hover:not(:disabled) {
+  background: var(--btn-neutral-hover);
+}
+
+.btn-warning {
+  background: var(--btn-warning-bg);
+  border-color: var(--btn-warning-border);
+  color: var(--btn-warning-text);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: var(--btn-warning-hover);
+}
+
+.btn-danger {
+  background: var(--btn-danger-bg);
+  border-color: var(--btn-danger-border);
+  color: var(--btn-danger-text);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--btn-danger-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-main);
 }

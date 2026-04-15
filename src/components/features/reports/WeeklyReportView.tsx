@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { useAppStore } from '@/lib/store';
 import type { BankTab } from '@/lib/store';
+import { loadXLSX } from '@/lib/lazyVendors';
 
-const WEEK_LABELS = ['Tuần 1 (1–8)', 'Tuần 2 (9–15)', 'Tuần 3 (16–22)', 'Tuần 4 (23–cuối)'];
+const WEEK_LABELS = ['Tuần 1 (1-8)', 'Tuần 2 (9-15)', 'Tuần 3 (16-22)', 'Tuần 4 (23-cuối)'];
 
 function getLastDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
@@ -22,12 +22,40 @@ function formatNumber(value: number): string {
   return value.toLocaleString('vi-VN');
 }
 
+function formatWeeklyDisplayValue(value: number): string {
+  return value === 0 ? '-' : formatNumber(value);
+}
+
 interface CategoryRow {
   code: string;
   name: string;
   ledgerAccount: string;
   weeks: [number, number, number, number];
   total: number;
+}
+
+const BANK_BUTTONS: { key: BankTab; label: string }[] = [
+  { key: 'BIDV', label: 'BIDV' },
+  { key: 'AGRIBANK', label: 'AGRIBANK' },
+];
+
+function getBankButtonStyle(activeBank: BankTab, buttonBank: BankTab) {
+  const isActive = activeBank === buttonBank;
+  const isAgribank = buttonBank === 'AGRIBANK';
+
+  if (!isActive) {
+    return {
+      backgroundColor: '#ffffff',
+      borderColor: 'var(--border)',
+      color: 'var(--text-main)',
+    };
+  }
+
+  return {
+    backgroundColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    borderColor: isAgribank ? 'var(--agribank)' : 'var(--primary)',
+    color: '#ffffff',
+  };
 }
 
 export function WeeklyReportView() {
@@ -113,14 +141,10 @@ export function WeeklyReportView() {
     return { weeks, total };
   }, [rows]);
 
-  function handleDownload() {
+  async function handleDownload() {
+    const XLSX = await loadXLSX();
     const header = ['Tên danh mục', 'TK', ...WEEK_LABELS, 'Tổng cộng'];
-    const data = rows.map((row) => [
-      row.name,
-      row.ledgerAccount,
-      ...row.weeks,
-      row.total,
-    ]);
+    const data = rows.map((row) => [row.name, row.ledgerAccount, ...row.weeks, row.total]);
     data.push(['Tổng cộng', '', ...totals.weeks, totals.total]);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
@@ -131,37 +155,34 @@ export function WeeklyReportView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Báo cáo theo tuần</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Tổng hợp thu chi theo từng tuần trong tháng
-          </p>
+          <p className="mt-0.5 text-sm text-gray-500">Tổng hợp thu chi theo từng tuần trong tháng</p>
         </div>
-        <button
-          onClick={handleDownload}
-          disabled={rows.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
+        <button onClick={handleDownload} disabled={rows.length === 0} className="btn btn-md btn-primary">
           <Download className="w-4 h-4" />
           Tải Excel
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Ngân hàng</label>
-            <select
-              value={bank}
-              onChange={(e) => setBank(e.target.value as BankTab)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="AGRIBANK">AGRIBANK</option>
-              <option value="BIDV">BIDV</option>
-            </select>
+            <div className="flex items-center gap-2">
+              {BANK_BUTTONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setBank(option.key)}
+                  className="btn btn-md"
+                  style={getBankButtonStyle(bank, option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -169,7 +190,7 @@ export function WeeklyReportView() {
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -184,7 +205,7 @@ export function WeeklyReportView() {
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               {availableYears.map((y) => (
                 <option key={y} value={y}>
@@ -196,33 +217,23 @@ export function WeeklyReportView() {
         </div>
       </div>
 
-      {/* Table */}
       {rows.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">
-            Không có dữ liệu cho {bank} tháng {month}/{year}.
-          </p>
+        <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
+          <p className="text-sm text-gray-400">Không có dữ liệu cho {bank} tháng {month}/{year}.</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">
-                    Tên danh mục
-                  </th>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">Tên danh mục</th>
                   {WEEK_LABELS.map((label) => (
-                    <th
-                      key={label}
-                      className="text-right px-4 py-3 font-semibold text-gray-700 whitespace-nowrap"
-                    >
+                    <th key={label} className="text-right px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">
                       {label}
                     </th>
                   ))}
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">
-                    Tổng cộng
-                  </th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">Tổng cộng</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,41 +241,29 @@ export function WeeklyReportView() {
                   <tr key={row.code} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{row.name}</div>
-                      {row.ledgerAccount && (
-                        <div className="text-xs text-gray-400 mt-0.5">TK {row.ledgerAccount}</div>
-                      )}
+                      {row.ledgerAccount && <div className="mt-0.5 text-xs text-gray-400">TK {row.ledgerAccount}</div>}
                     </td>
                     {row.weeks.map((value, i) => (
-                      <td
-                        key={i}
-                        className={`text-right px-4 py-3 tabular-nums ${value < 0 ? 'text-red-600' : 'text-gray-900'}`}
-                      >
-                        {formatNumber(value)}
+                      <td key={i} className={`text-right px-4 py-3 tabular-nums ${value < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                        {formatWeeklyDisplayValue(value)}
                       </td>
                     ))}
-                    <td
-                      className={`text-right px-4 py-3 font-semibold tabular-nums ${row.total < 0 ? 'text-red-600' : 'text-gray-900'}`}
-                    >
-                      {formatNumber(row.total)}
+                    <td className={`text-right px-4 py-3 font-semibold tabular-nums ${row.total < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                      {formatWeeklyDisplayValue(row.total)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-gray-50 border-t border-gray-200">
+                <tr className="border-t border-gray-200 bg-gray-50">
                   <td className="px-4 py-3 font-bold text-gray-900">Tổng cộng</td>
                   {totals.weeks.map((value, i) => (
-                    <td
-                      key={i}
-                      className={`text-right px-4 py-3 font-bold tabular-nums ${value < 0 ? 'text-red-600' : 'text-gray-900'}`}
-                    >
-                      {formatNumber(value)}
+                    <td key={i} className={`text-right px-4 py-3 font-bold tabular-nums ${value < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                      {formatWeeklyDisplayValue(value)}
                     </td>
                   ))}
-                  <td
-                    className={`text-right px-4 py-3 font-bold tabular-nums ${totals.total < 0 ? 'text-red-600' : 'text-gray-900'}`}
-                  >
-                    {formatNumber(totals.total)}
+                  <td className={`text-right px-4 py-3 font-bold tabular-nums ${totals.total < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {formatWeeklyDisplayValue(totals.total)}
                   </td>
                 </tr>
               </tfoot>

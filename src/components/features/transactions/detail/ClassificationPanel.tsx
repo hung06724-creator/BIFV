@@ -12,7 +12,7 @@ interface ClassificationPanelProps {
   onAllocationChange: (
     allocationNo: number,
     patch: Partial<Pick<TransactionAllocationView, 'amount' | 'beneficiary_name' | 'beneficiary_code' | 'notes'>>,
-    categoryId?: string
+    categoryId?: string | null
   ) => void;
   onAddAllocation: () => void;
   onRemoveAllocation: (allocationNo: number) => void;

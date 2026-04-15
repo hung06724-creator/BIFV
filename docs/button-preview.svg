@@ -1,0 +1,104 @@
+<svg width="1440" height="980" viewBox="0 0 1440 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="980" fill="#F6F5F1"/>
+
+  <text x="72" y="84" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">
+    Preview he thong button
+  </text>
+  <text x="72" y="120" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="18">
+    Goi y phan cap mau nut bam theo palette xanh reu hien tai
+  </text>
+
+  <g transform="translate(72 170)">
+    <rect width="1296" height="738" rx="32" fill="#FBFAF7" stroke="#D9E2DC"/>
+
+    <g transform="translate(36 36)">
+      <rect width="1218" height="116" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="28" y="42" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+        Primary
+      </text>
+      <text x="28" y="72" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+        Hanh dong chinh nhu Luu, Xac nhan, Xuat bao cao
+      </text>
+      <rect x="760" y="28" width="170" height="52" rx="16" fill="#2F6B5F"/>
+      <text x="823" y="61" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Luu
+      </text>
+      <rect x="948" y="28" width="242" height="52" rx="16" fill="#28584F"/>
+      <text x="1010" y="61" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Hover / Active
+      </text>
+    </g>
+
+    <g transform="translate(36 176)">
+      <rect width="1218" height="116" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="28" y="42" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+        Secondary
+      </text>
+      <text x="28" y="72" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+        Hanh dong phu nhung van can thay ro va sach
+      </text>
+      <rect x="760" y="28" width="170" height="52" rx="16" fill="#EDF5F2" stroke="#C8D8D1"/>
+      <text x="807" y="61" fill="#28584F" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Bo loc
+      </text>
+      <rect x="948" y="28" width="242" height="52" rx="16" fill="#DCEBE5" stroke="#C8D8D1"/>
+      <text x="1010" y="61" fill="#28584F" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Hover / Focus
+      </text>
+    </g>
+
+    <g transform="translate(36 316)">
+      <rect width="1218" height="116" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="28" y="42" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+        Neutral
+      </text>
+      <text x="28" y="72" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+        Nut trung tinh cho Dong, Huy, Quay lai
+      </text>
+      <rect x="760" y="28" width="170" height="52" rx="16" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="820" y="61" fill="#4B5A55" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Dong
+      </text>
+      <rect x="948" y="28" width="242" height="52" rx="16" fill="#F3F4F2" stroke="#D9E2DC"/>
+      <text x="1010" y="61" fill="#4B5A55" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Hover
+      </text>
+    </g>
+
+    <g transform="translate(36 456)">
+      <rect width="1218" height="116" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="28" y="42" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+        Warning
+      </text>
+      <text x="28" y="72" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+        Dung cho can xu ly, doi chieu lai, chua hoan tat
+      </text>
+      <rect x="760" y="28" width="170" height="52" rx="16" fill="#F6E9CF" stroke="#E2C78F"/>
+      <text x="800" y="61" fill="#9A6516" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Xu ly
+      </text>
+      <rect x="948" y="28" width="242" height="52" rx="16" fill="#EEDDB8" stroke="#E2C78F"/>
+      <text x="1010" y="61" fill="#9A6516" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Hover / Focus
+      </text>
+    </g>
+
+    <g transform="translate(36 596)">
+      <rect width="1218" height="116" rx="24" fill="#FFFFFF" stroke="#D9E2DC"/>
+      <text x="28" y="42" fill="#1F2937" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">
+        Danger
+      </text>
+      <text x="28" y="72" fill="#61706A" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+        Dung cho xoa, huy du lieu, thao tac pha huy
+      </text>
+      <rect x="760" y="28" width="170" height="52" rx="16" fill="#F7E3E3" stroke="#D9A9A9"/>
+      <text x="818" y="61" fill="#9E3E3E" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Xoa
+      </text>
+      <rect x="948" y="28" width="242" height="52" rx="16" fill="#EFCFCF" stroke="#D9A9A9"/>
+      <text x="1010" y="61" fill="#9E3E3E" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+        Hover / Focus
+      </text>
+    </g>
+  </g>
+</svg>
