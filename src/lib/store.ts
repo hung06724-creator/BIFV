@@ -4,6 +4,7 @@ import type { RuleListItem } from '@/components/features/rules/types';
 import { MOCK_CATEGORIES, MOCK_RULES } from '@/components/features/rules/mock-data';
 import {
   isSupabaseRuntimeReady,
+  persistRuntimeStateImmediately,
   persistRuntimeStateToDevApi,
   queueRuntimeStatePersist,
 } from '@/services/runtimeState.service';
@@ -45,7 +46,7 @@ function toPersistedState(state: any): PersistedAppState {
   };
 }
 
-async function persistStateToCode(state: PersistedAppState): Promise<void> {
+async function persistStateToCode(state: PersistedAppState, options?: { immediate?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
 
   if (!isSupabaseRuntimeReady()) {
@@ -55,6 +56,11 @@ async function persistStateToCode(state: PersistedAppState): Promise<void> {
     } catch {
       // Keep runtime persistence best-effort in local/dev mode.
     }
+  }
+
+  if (options?.immediate) {
+    await persistRuntimeStateImmediately(state);
+    return;
   }
 
   queueRuntimeStatePersist(state);
@@ -232,7 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         batches: state.batches.filter((b) => remainingBatchIds.has(b.id)),
       };
     });
-    void persistStateToCode(toPersistedState(get()));
+    void persistStateToCode(toPersistedState(get()), { immediate: true });
   },
 
   clearAll: () => {

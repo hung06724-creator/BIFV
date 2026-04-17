@@ -333,12 +333,11 @@ async function deleteRows(table: string, column: string, ids: string[]): Promise
   }
 }
 
-async function syncTable<Row extends object>(
-  table: string,
+function buildTableDiff<Row extends object>(
   keyField: keyof Row & string,
   previousRows: Row[],
   nextRows: Row[],
-): Promise<void> {
+): { upserts: Row[]; deletions: string[] } {
   const previousByKey = new Map<string, Row>();
   for (const row of previousRows) {
     previousByKey.set(String(row[keyField]), row);
@@ -364,8 +363,7 @@ async function syncTable<Row extends object>(
     }
   }
 
-  await upsertRows(table, upserts, keyField);
-  await deleteRows(table, keyField, deletions);
+  return { upserts, deletions };
 }
 
 export function isSupabaseRuntimeReady(): boolean {
@@ -500,13 +498,31 @@ async function persistDiffToSupabase(state: PersistedRuntimeState): Promise<void
   const previous = buildRelationalState(lastSyncedState ?? EMPTY_STATE);
   const next = buildRelationalState(state);
 
-  await syncTable(TABLES.batches, 'id', previous.batches, next.batches);
-  await syncTable(TABLES.categories, 'id', previous.categories, next.categories);
-  await syncTable(TABLES.students, 'ma_ho_so', previous.students, next.students);
-  await syncTable(TABLES.rules, 'id', previous.rules, next.rules);
-  await syncTable(TABLES.transactions, 'id', previous.transactions, next.transactions);
-  await syncTable(TABLES.tuitionRecords, 'transaction_id', previous.tuitionRecords, next.tuitionRecords);
-  await syncTable(TABLES.settings, 'key', previous.settings, next.settings);
+  const batchesDiff = buildTableDiff('id', previous.batches, next.batches);
+  const categoriesDiff = buildTableDiff('id', previous.categories, next.categories);
+  const studentsDiff = buildTableDiff('ma_ho_so', previous.students, next.students);
+  const rulesDiff = buildTableDiff('id', previous.rules, next.rules);
+  const transactionsDiff = buildTableDiff('id', previous.transactions, next.transactions);
+  const tuitionDiff = buildTableDiff('transaction_id', previous.tuitionRecords, next.tuitionRecords);
+  const settingsDiff = buildTableDiff('key', previous.settings, next.settings);
+
+  // Upsert order: parent tables first to satisfy foreign keys.
+  await upsertRows(TABLES.batches, batchesDiff.upserts, 'id');
+  await upsertRows(TABLES.categories, categoriesDiff.upserts, 'id');
+  await upsertRows(TABLES.students, studentsDiff.upserts, 'ma_ho_so');
+  await upsertRows(TABLES.rules, rulesDiff.upserts, 'id');
+  await upsertRows(TABLES.transactions, transactionsDiff.upserts, 'id');
+  await upsertRows(TABLES.tuitionRecords, tuitionDiff.upserts, 'transaction_id');
+  await upsertRows(TABLES.settings, settingsDiff.upserts, 'key');
+
+  // Delete order: child tables first to satisfy foreign keys.
+  await deleteRows(TABLES.tuitionRecords, 'transaction_id', tuitionDiff.deletions);
+  await deleteRows(TABLES.transactions, 'id', transactionsDiff.deletions);
+  await deleteRows(TABLES.rules, 'id', rulesDiff.deletions);
+  await deleteRows(TABLES.students, 'ma_ho_so', studentsDiff.deletions);
+  await deleteRows(TABLES.categories, 'id', categoriesDiff.deletions);
+  await deleteRows(TABLES.batches, 'id', batchesDiff.deletions);
+  await deleteRows(TABLES.settings, 'key', settingsDiff.deletions);
 
   lastSyncedState = cloneState(state);
 }
@@ -552,4 +568,18 @@ export function queueRuntimeStatePersist(state: PersistedRuntimeState): void {
   flushTimer = setTimeout(() => {
     void flushPendingState();
   }, WRITE_DEBOUNCE_MS);
+}
+
+export async function persistRuntimeStateImmediately(state: PersistedRuntimeState): Promise<void> {
+  if (!isSupabaseRuntimeReady()) return;
+
+  markRuntimeStateDirty();
+  pendingState = cloneState(state);
+
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+
+  await flushPendingState();
 }
